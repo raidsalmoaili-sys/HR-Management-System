@@ -1,0 +1,31 @@
+@model Project_HR_1.Models.Hr.Support.SupportTicket
+@{ ViewData["Title"] = Model.TicketCode; }
+
+<div class="max-w-3xl mx-auto">
+    <a asp-action="Index" class="text-sm text-muted hover:text-ink mb-3 inline-block">
+        <i class="fa-solid fa-arrow-left me-1"></i>@L.T("back")
+    </a>
+
+    <div class="card">
+        <div class="flex items-start justify-between mb-4">
+            <div>
+                <div class="font-mono text-xs text-muted mb-1">@Model.TicketCode</div>
+                <h1 class="text-xl font-bold text-ink">@Model.Subject</h1>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <span class="badge badge-info">@Model.Status</span>
+                <span class="badge badge-muted">@Model.Priority</span>
+            </div>
+        </div>
+
+        <div class="text-sm whitespace-pre-wrap text-ink bg-slate-50 rounded-ctrl p-4">@Model.Description</div>
+
+        <div class="mt-4 text-xs text-muted flex gap-4">
+            <span><i class="fa-regular fa-calendar me-1"></i>@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</span>
+            @if (!string.IsNullOrEmpty(Model.AssignedToUserId))
+            {
+                <span><i class="fa-solid fa-user-tie me-1"></i>@L.T("help_assigned")</span>
+            }
+        </div>
+    </div>
+</div>

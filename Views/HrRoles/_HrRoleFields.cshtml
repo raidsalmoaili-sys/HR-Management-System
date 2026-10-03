@@ -1,0 +1,91 @@
+@model Project_HR_1.Models.ViewModels.Management.HrRoleEditVM
+@using Project_HR_1.Models.Hr
+@using Project_HR_1.Models.Hr.HrPermissions
+
+<input type="hidden" asp-for="Id" />
+<div asp-validation-summary="ModelOnly" class="auth-error"></div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+        <label asp-for="Code" class="auth-label">@L.L("الرمز", "Code")</label>
+        <input asp-for="Code" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NameAr" class="auth-label">@L.L("الاسم (عربي)", "Name (AR)")</label>
+        <input asp-for="NameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NameEn" class="auth-label">@L.L("الاسم (إنجليزي)", "Name (EN)")</label>
+        <input asp-for="NameEn" class="auth-input" />
+    </div>
+    <div class="md:col-span-3">
+        <label asp-for="Description" class="auth-label">@L.L("الوصف", "Description")</label>
+        <input asp-for="Description" class="auth-input" />
+    </div>
+</div>
+
+<h3 class="font-bold text-ink mt-4 mb-2 text-sm text-muted">@L.L("الصلاحيات", "Permissions")</h3>
+<div class="border border-slate-200 rounded-card overflow-hidden">
+    <table class="table text-xs">
+        <thead>
+            <tr>
+                <th>@L.L("الخدمة", "Service")</th>
+                @foreach (var p in HrBusinessPermissions.All)
+                {
+                    <th class="text-center">@PermName(p)</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+        @{ var idx = 0; }
+        @foreach (var svc in ServiceCatalog.Services)
+        {
+            <tr>
+                <td class="font-semibold">
+                    <i class="fa-solid @svc.Icon me-1 text-muted"></i>@L.L(svc.NameAr, svc.NameEn)
+                </td>
+                @foreach (var p in HrBusinessPermissions.All)
+                {
+                    var cell = Model.Cells[idx++];
+                    <td class="text-center">
+                        <input type="hidden" name="Cells[@(idx-1)].ServiceId" value="@cell.ServiceId" />
+                        <input type="hidden" name="Cells[@(idx-1)].Permission" value="@cell.Permission" />
+                        <input type="checkbox" name="Cells[@(idx-1)].Checked" value="true" @(cell.Checked ? "checked" : "") class="h-4 w-4" />
+                    </td>
+                }
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>
+
+<h3 class="font-bold text-ink mt-4 mb-2 text-sm text-muted">@L.L("صلاحيات النظام", "System permissions")</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+    @foreach (var sysPerm in HrSystemPermissions.All)
+    {
+        var cell = Model.Cells[idx++];
+        <label class="flex items-center gap-2 px-3 py-2 rounded-ctrl border border-slate-200 hover:bg-amber-50">
+            <input type="hidden" name="Cells[@(idx-1)].ServiceId" value="@cell.ServiceId" />
+            <input type="hidden" name="Cells[@(idx-1)].Permission" value="@cell.Permission" />
+            <input type="checkbox" name="Cells[@(idx-1)].Checked" value="true" @(cell.Checked ? "checked" : "") class="h-4 w-4" />
+            <span class="text-sm">@PermName(sysPerm)</span>
+        </label>
+    }
+</div>
+
+@functions {
+    // Arabic/English labels for permission codes (the codes themselves stay in English in the database).
+    private string PermName(string code) => code switch
+    {
+        "view"              => L.L("عرض", "View"),
+        "create"            => L.L("إضافة", "Create"),
+        "edit"              => L.L("تعديل", "Edit"),
+        "delete"            => L.L("حذف", "Delete"),
+        "approve"           => L.L("اعتماد", "Approve"),
+        "manage-hr-roles"   => L.L("إدارة الأدوار", "Manage roles"),
+        "assign-hr-roles"   => L.L("إعطاء الصلاحيات للموظفين", "Assign roles to employees"),
+        "approve-employees" => L.L("اعتماد الموظفين", "Approve employees"),
+        "view-employees"    => L.L("عرض الموظفين", "View employees"),
+        _                   => code,
+    };
+}

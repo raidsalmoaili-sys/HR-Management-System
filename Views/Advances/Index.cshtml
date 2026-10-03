@@ -1,0 +1,188 @@
+@model Project_HR_1.Models.ViewModels.Modules.AdvancesListVM
+@using Project_HR_1.Models.Hr.Modules
+@using Project_HR_1.Services.HrModules
+@{
+    ViewData["Title"] = L.L("السلف", "Salary Advances");
+    var tabs = new (string? Code, string Ar, string En)[] { (null, "الكل", "All"), (RequestStatuses.Pending, "بانتظار الاعتماد", "Pending"), (RequestStatuses.Approved, "قيد السداد", "Repaying"), (RequestStatuses.Closed, "مسددة", "Closed"), (RequestStatuses.Rejected, "مرفوضة", "Rejected") };
+    var now = DateTime.Today;
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("السلف", "Salary Advances")</h2>
+        <div class="sub">@L.L("سلف على الراتب تُسدد بأقساط شهرية تُخصم تلقائياً من مسير الرواتب", "Advances repaid in monthly installments deducted automatically in payroll")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.Perms.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-adv-create"><i class="fa-solid fa-plus me-1"></i>@L.L("طلب سلفة", "New advance")</button>
+        }
+    </div>
+</div>
+
+<partial name="_ModuleFlash" />
+
+<div class="stats-grid">
+    <div class="stat-card" style="--stat-color:#f59e0b"><div class="stat-icon"><i class="fa-solid fa-hourglass-half"></i></div><div class="stat-info"><h3>@Model.PendingCount</h3><p>@L.L("بانتظار الاعتماد", "Pending approval")</p></div></div>
+    <div class="stat-card" style="--stat-color:#3b82f6"><div class="stat-icon"><i class="fa-solid fa-piggy-bank"></i></div><div class="stat-info"><h3>@Model.ActiveCount</h3><p>@L.L("سلف قيد السداد", "Being repaid")</p></div></div>
+    <div class="stat-card" style="--stat-color:#dc2626"><div class="stat-icon"><i class="fa-solid fa-sack-dollar"></i></div><div class="stat-info"><h3 class="hm-num">@HrCalendar.Money0(Model.OutstandingTotal)</h3><p>@L.L("المتبقي على الموظفين (ر.س)", "Outstanding (SAR)")</p></div></div>
+    <div class="stat-card" style="--stat-color:#16a34a"><div class="stat-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div><div class="stat-info"><h3 class="hm-num">@HrCalendar.Money0(Model.RepaidTotal)</h3><p>@L.L("إجمالي المسدد (ر.س)", "Repaid (SAR)")</p></div></div>
+</div>
+
+<div class="hm-tabs">
+    @foreach (var t in tabs)
+    {
+        <a class="hm-tab @(Model.Status == t.Code ? "active" : "")" asp-action="Index" asp-route-status="@t.Code" asp-route-q="@Model.Search">@L.L(t.Ar, t.En)</a>
+    }
+</div>
+
+<div class="data-card">
+    <form method="get" class="filter-bar">
+        <input type="hidden" name="status" value="@Model.Status" />
+        <input type="search" name="q" value="@Model.Search" class="select-box" placeholder="@L.L("بحث بالاسم أو الرقم", "Search name or code")" />
+        <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <span class="hm-spacer"></span>
+        <span class="hm-small hm-muted">@L.L($"الحد الأعلى للسلفة {AdvancesController_Max} رواتب أساسية", $"Max advance: {AdvancesController_Max}× basic salary")</span>
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الموظف", "Employee")</th>
+                    <th class="hm-right">@L.L("المبلغ", "Amount")</th>
+                    <th class="hm-center">@L.L("الأقساط", "Installments")</th>
+                    <th class="hm-right">@L.L("القسط الشهري", "Monthly")</th>
+                    <th>@L.L("بداية الخصم", "Starts")</th>
+                    <th>@L.L("السداد", "Repayment")</th>
+                    <th>@L.L("الحالة", "Status")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Advances.Count == 0)
+            {
+                <tr class="empty"><td colspan="8">@L.L("لا توجد سلف", "No advances.")</td></tr>
+            }
+            @foreach (var a in Model.Advances)
+            {
+                var st = a.Status == RequestStatuses.Approved ? ("قيد السداد", "Repaying", "info") : RequestStatuses.Get(a.Status);
+                var pct = a.Amount == 0 ? 0 : (int)Math.Round(a.RepaidAmount * 100 / a.Amount);
+                <tr>
+                    <td>
+                        <div class="font-semibold">@(a.Employee != null ? L.L(a.Employee.NameAr, a.Employee.NameEn) : "—")</div>
+                        <div class="hm-small hm-muted">@a.Employee?.EmployeeCode · @(a.Employee?.Branch != null ? L.L(a.Employee.Branch.NameAr, a.Employee.Branch.NameEn) : "")</div>
+                        @if (!string.IsNullOrEmpty(a.Reason)) { <div class="hm-small hm-muted">@a.Reason</div> }
+                    </td>
+                    <td class="hm-right hm-num hm-strong">@HrCalendar.Money(a.Amount)</td>
+                    <td class="hm-center">@a.Installments</td>
+                    <td class="hm-right hm-num">@HrCalendar.Money(a.MonthlyInstallment)</td>
+                    <td class="hm-num">@a.StartYear/@a.StartMonth.ToString("00")</td>
+                    <td style="min-width:9rem">
+                        <div class="hm-progress"><i style="width:@(pct)%"></i></div>
+                        <div class="hm-small hm-muted"><span class="hm-num">@HrCalendar.Money0(a.RepaidAmount)</span> / <span class="hm-num">@HrCalendar.Money0(a.Amount)</span> — @L.L("المتبقي", "left") <span class="hm-num">@HrCalendar.Money0(a.Remaining)</span></div>
+                    </td>
+                    <td><span class="badge badge-@st.Item3">@L.L(st.Item1, st.Item2)</span></td>
+                    <td class="text-end hm-nowrap">
+                        @if (a.Status == RequestStatuses.Pending && Model.Perms.CanApprove)
+                        {
+                            <form asp-action="Approve" asp-route-id="@a.Id" method="post" class="inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn" title="@L.L("اعتماد", "Approve")" style="color:#16a34a"><i class="fa-solid fa-check"></i></button>
+                            </form>
+                            <form asp-action="Reject" asp-route-id="@a.Id" method="post" class="inline" onsubmit="return confirm('@L.L("رفض السلفة؟", "Reject this advance?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger" title="@L.L("رفض", "Reject")"><i class="fa-solid fa-xmark"></i></button>
+                            </form>
+                        }
+                        @if (a.RepaidAmount == 0 && Model.Perms.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@a.Id" method="post" class="inline" onsubmit="return confirm('@L.L("حذف السلفة؟", "Delete this advance?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger" title="@L.L("حذف", "Delete")"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Perms.CanCreate)
+{
+    <dialog id="modal-adv-create" class="modal">
+        <form method="post" asp-action="Create">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-piggy-bank"></i></span><span class="mm-txt"><small>@L.L("السلف", "Advances")</small>@L.L("طلب سلفة جديد", "New salary advance")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="hm-form two">
+                    <div class="full">
+                        <label class="auth-label">@L.L("الموظف", "Employee")</label>
+                        <select name="EmployeeId" class="auth-input" required id="adv-emp">
+                            <option value="">@L.L("— اختر الموظف —", "— Choose employee —")</option>
+                            @foreach (var e in Model.Employees)
+                            {
+                                <option value="@e.Id" data-basic="@e.BasicSalary.ToString(System.Globalization.CultureInfo.InvariantCulture)">@L.L(e.NameAr, e.NameEn) · @e.Code</option>
+                            }
+                        </select>
+                        <div class="hm-hint" id="adv-max"></div>
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("المبلغ (ر.س)", "Amount (SAR)")</label>
+                        <input type="number" name="Amount" min="100" step="50" class="auth-input" required id="adv-amount" />
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("عدد الأقساط (شهر)", "Installments (months)")</label>
+                        <input type="number" name="Installments" min="1" max="24" value="3" class="auth-input" required id="adv-inst" />
+                        <div class="hm-hint" id="adv-monthly"></div>
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("بداية الخصم — الشهر", "First deduction — month")</label>
+                        <select name="StartMonth" class="auth-input">
+                            @for (var m = 1; m <= 12; m++) { <option value="@m" selected="@(m == (now.Month % 12) + 1 ? "selected" : null)">@L.L(HrCalendar.MonthNameAr(m), HrCalendar.MonthNameEn(m))</option> }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("السنة", "Year")</label>
+                        <input type="number" name="StartYear" value="@(now.Month == 12 ? now.Year + 1 : now.Year)" min="2000" max="2100" class="auth-input" />
+                    </div>
+                    <div class="full">
+                        <label class="auth-label">@L.L("السبب", "Reason")</label>
+                        <textarea name="Reason" class="auth-input" rows="2" maxlength="500"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("تسجيل الطلب", "Submit")</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@functions {
+    private const int AdvancesController_Max = Project_HR_1.Controllers.AdvancesController.MaxMonthsOfSalary;
+}
+
+@section Scripts {
+<script>
+(() => {
+    const emp = document.getElementById('adv-emp'); if (!emp) return;
+    const amt = document.getElementById('adv-amount'), inst = document.getElementById('adv-inst');
+    const max = document.getElementById('adv-max'), mon = document.getElementById('adv-monthly');
+    const fmt = n => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    const upd = () => {
+        const basic = parseFloat(emp.selectedOptions[0]?.dataset.basic || '0');
+        max.textContent = basic ? '@L.L("الحد الأعلى: ", "Maximum: ")' + fmt(basic * @AdvancesController_Max) + ' @L.L("ر.س", "SAR")' : '';
+        if (basic) amt.max = basic * @AdvancesController_Max;
+        const a = parseFloat(amt.value || '0'), n = parseInt(inst.value || '1');
+        mon.textContent = a && n ? '@L.L("القسط الشهري: ", "Monthly: ")' + fmt(Math.ceil(a / n * 100) / 100) : '';
+    };
+    [emp, amt, inst].forEach(x => x.addEventListener('input', upd));
+})();
+</script>
+}

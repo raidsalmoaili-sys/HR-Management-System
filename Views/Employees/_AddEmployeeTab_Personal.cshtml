@@ -1,0 +1,76 @@
+@model Project_HR_1.Models.ViewModels.Management.AddEmployeeVM
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label asp-for="NationalId" class="auth-label">@L.L("رقم الهوية الوطنية", "National ID")</label>
+        <input asp-for="NationalId" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NationalIdExpiry" class="auth-label">@L.L("تاريخ انتهاء الهوية", "National ID expiry")</label>
+        <input asp-for="NationalIdExpiry" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="IqamaNumber" class="auth-label">@L.L("رقم الإقامة", "Iqama number")</label>
+        <input asp-for="IqamaNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="IqamaExpiry" class="auth-label">@L.L("تاريخ انتهاء الإقامة", "Iqama expiry")</label>
+        <input asp-for="IqamaExpiry" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="PassportNumber" class="auth-label">@L.L("رقم جواز السفر", "Passport number")</label>
+        <input asp-for="PassportNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="PassportExpiry" class="auth-label">@L.L("تاريخ انتهاء الجواز", "Passport expiry")</label>
+        <input asp-for="PassportExpiry" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="BirthDate" class="auth-label">@L.L("تاريخ الميلاد", "Birth date")</label>
+        <input asp-for="BirthDate" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="MaritalStatus" class="auth-label">@L.L("الحالة الاجتماعية", "Marital status")</label>
+        <select asp-for="MaritalStatus" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            <option value="Single">@L.L("أعزب", "Single")</option>
+            <option value="Married">@L.L("متزوج", "Married")</option>
+            <option value="Divorced">@L.L("مطلق", "Divorced")</option>
+            <option value="Widowed">@L.L("أرمل", "Widowed")</option>
+        </select>
+    </div>
+    <div>
+        <label asp-for="ChildrenCount" class="auth-label">@L.L("عدد الأبناء", "Children count")</label>
+        <input asp-for="ChildrenCount" type="number" min="0" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="BloodType" class="auth-label">@L.L("فصيلة الدم", "Blood type")</label>
+        <select asp-for="BloodType" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var bt in new[] { "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-" })
+            {
+                <option value="@bt">@bt</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="City" class="auth-label">@L.L("المدينة", "City")</label>
+        <input asp-for="City" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="District" class="auth-label">@L.L("الحي", "District")</label>
+        <input asp-for="District" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="Street" class="auth-label">@L.L("الشارع", "Street")</label>
+        <input asp-for="Street" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EmergencyContactName" class="auth-label">@L.L("اسم جهة الاتصال في الطوارئ", "Emergency contact name")</label>
+        <input asp-for="EmergencyContactName" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EmergencyContactPhone" class="auth-label">@L.L("رقم التواصل في حالات الطوارئ", "Emergency contact phone")</label>
+        <input asp-for="EmergencyContactPhone" class="auth-input" />
+    </div>
+</div>

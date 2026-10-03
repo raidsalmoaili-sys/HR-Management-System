@@ -1,0 +1,280 @@
+@model Project_HR_1.Models.ViewModels.Management.AddEmployeeVM
+
+<div class="mb-3 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-muted">
+    <i class="fa-solid fa-circle-info me-1"></i>
+    @L.L("البريد وكلمة المرور اختياريان: اتركهما فارغين إذا الموظف ما يحتاج حساب دخول للنظام (مثل العمال). الحقول المعلّمة بـ * إلزامية.",
+         "Email and password are optional: leave both blank if the employee doesn't need a login. Fields marked * are required.")
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label asp-for="Email" class="auth-label">@L.L("البريد الإلكتروني (اختياري)", "Email (optional)")</label>
+        <input asp-for="Email" class="auth-input" autocomplete="off" />
+        <div id="add-email-hint" class="field-hint hidden"></div>
+    </div>
+    <div>
+        <label asp-for="InitialPassword" class="auth-label">@L.L("كلمة المرور الأولية (اختياري)", "Initial password (optional)")</label>
+        <input asp-for="InitialPassword" type="password" class="auth-input" autocomplete="new-password" />
+        <div id="add-pass-hint" class="field-hint hidden"></div>
+    </div>
+
+    <div>
+        <label asp-for="FirstNameAr" class="auth-label">@L.L("الاسم الأول", "First name") *</label>
+        <input asp-for="FirstNameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="FirstNameEn" class="auth-label">@L.L("First name (EN)", "First name (EN)")</label>
+        <input asp-for="FirstNameEn" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="FatherNameAr" class="auth-label">@L.L("اسم الأب", "Father's name")</label>
+        <input asp-for="FatherNameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="FatherNameEn" class="auth-label">@L.L("Father's name (EN)", "Father's name (EN)")</label>
+        <input asp-for="FatherNameEn" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="GrandfatherNameAr" class="auth-label">@L.L("اسم الجد", "Grandfather's name")</label>
+        <input asp-for="GrandfatherNameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="GrandfatherNameEn" class="auth-label">@L.L("Grandfather's name (EN)", "Grandfather's name (EN)")</label>
+        <input asp-for="GrandfatherNameEn" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="FamilyNameAr" class="auth-label">@L.L("اسم العائلة", "Family name") *</label>
+        <input asp-for="FamilyNameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="FamilyNameEn" class="auth-label">@L.L("Family name (EN)", "Family name (EN)")</label>
+        <input asp-for="FamilyNameEn" class="auth-input" />
+    </div>
+
+    <div class="md:col-span-2">
+        <label asp-for="EmployeeCode" class="auth-label">@L.L("الرقم الوظيفي", "Employee Code") *</label>
+        <div class="code-gen-row">
+            <input id="add-code-prefix" type="text" class="auth-input code-prefix-inp"
+                   placeholder="@L.L("البادئة: مثال EMP-", "Prefix e.g. EMP-")" maxlength="12" />
+            <input asp-for="EmployeeCode" class="auth-input code-main-inp"
+                   placeholder="@L.L("سيُولَّد تلقائياً أو أدخله يدوياً", "Auto-generated or enter manually")" />
+            <button type="button" id="add-code-auto-btn" class="btn-code-gen"
+                    title="@L.L("إيجاد الرقم التالي المتاح", "Find next available number")">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span>@L.L("رقم تلقائي", "Auto")</span>
+            </button>
+        </div>
+        <div id="add-code-hint" class="field-hint hidden"></div>
+    </div>
+
+    <div>
+        <label asp-for="HireDate" class="auth-label">@L.L("تاريخ الالتحاق", "Hire date")</label>
+        <input asp-for="HireDate" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="LastWorkDate" class="auth-label">@L.L("تاريخ آخر مباشرة عمل", "Last work date")</label>
+        <input asp-for="LastWorkDate" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="BasicSalary" class="auth-label">@L.L("راتب أساسي", "Basic salary")</label>
+        <input asp-for="BasicSalary" type="number" step="0.01" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="Phone" class="auth-label">@L.L("رقم الجوال", "Mobile number")</label>
+        <input asp-for="Phone" class="auth-input" placeholder="05xxxxxxxx" />
+    </div>
+
+    @* Company filter — not posted; only used to filter Branch/Department/Sponsor/JobTitle dropdowns *@
+    <div class="md:col-span-2">
+        <label class="auth-label">@L.L("الشركة", "Company")</label>
+        <select id="add-emp-company" class="select-box">
+            <option value="">— @L.L("اختر الشركة", "Select company") —</option>
+            @foreach (var c in Model.Companies)
+            {
+                <option value="@c.Id">@L.L(c.ShortNameAr ?? c.NameAr, c.ShortNameEn ?? c.NameEn)</option>
+            }
+        </select>
+    </div>
+
+    <div>
+        <label asp-for="BranchId" class="auth-label">@L.L("جهة العمل (الفرع)", "Work entity (Branch)") *</label>
+        <select asp-for="BranchId" id="add-emp-branch" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var b in Model.Branches)
+            {
+                <option value="@b.Id" data-company="@b.CompanyId">@L.L(b.NameAr, b.NameEn ?? b.NameAr)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="DepartmentId" class="auth-label">@L.L("الإدارة", "Department")</label>
+        <select asp-for="DepartmentId" id="add-emp-dept" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var d in Model.Departments)
+            {
+                <option value="@d.Id" data-company="@d.CompanyId">@L.L(d.NameAr, d.NameEn)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="SponsorId" class="auth-label">@L.L("الكفيل", "Sponsor")</label>
+        <select asp-for="SponsorId" id="add-emp-sponsor" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var s in Model.Sponsors)
+            {
+                <option value="@s.Id" data-company="@s.CompanyId">@L.L(s.NameAr, s.NameEn)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="NationalityCode" class="auth-label">@L.L("الجنسية", "Nationality")</label>
+        <select asp-for="NationalityCode" id="add-emp-nationality" data-nationality class="select-box">
+            @foreach (var n in Model.Nationalities)
+            {
+                <option value="@n.Code">@L.L(n.NameAr, n.NameEn)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="JobTitleId" class="auth-label">@L.L("الوظيفة (المسمى الوظيفي)", "Job Title")</label>
+        <select asp-for="JobTitleId" id="add-emp-jt" class="select-box">
+            <option value="">@L.L("بدون", "None")</option>
+            @foreach (var j in Model.JobTitles)
+            {
+                <option value="@j.Id" data-company="@j.CompanyId">@L.L(j.NameAr, j.NameEn)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="CostCenter" class="auth-label">@L.L("جهة التجميعية", "Cost center")</label>
+        <input asp-for="CostCenter" class="auth-input" />
+    </div>
+</div>
+
+<style>
+.field-hint           { font-size: .75rem; margin-top: .3rem; display: flex; align-items: center; gap: .3rem; }
+.field-hint--error    { color: #dc2626; }
+.field-hint--checking { color: #94a3b8; }
+.field-hint.hidden    { display: none; }
+.code-gen-row { display: flex; gap: .5rem; align-items: center; }
+.code-prefix-inp { flex: 0 0 130px !important; }
+.code-main-inp   { flex: 1 !important; }
+.btn-code-gen {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: .4rem;
+    padding: .5rem .9rem; border-radius: 8px; background: #1a2744; color: #fff; border: none;
+    font-size: .82rem; font-weight: 600; cursor: pointer; transition: background .15s, opacity .15s; white-space: nowrap; line-height: 1.5;
+}
+.btn-code-gen:hover   { background: #243349; }
+.btn-code-gen:disabled { opacity: .55; cursor: not-allowed; }
+@@media (max-width: 480px) {
+    .code-gen-row { flex-wrap: wrap; }
+    .code-prefix-inp, .code-main-inp { flex: 1 0 45% !important; }
+}
+</style>
+
+<script>
+(function () {
+    const isRtl = document.documentElement.dir === 'rtl';
+
+    function hint(el, text, type) {
+        if (!text) { el.className = 'field-hint hidden'; el.textContent = ''; return; }
+        el.className = 'field-hint field-hint--' + type;
+        el.innerHTML = (type === 'error'
+            ? '<i class="fa-solid fa-circle-exclamation"></i> '
+            : '<i class="fa-solid fa-spinner fa-spin"></i> ') + text;
+    }
+
+    async function checkUnique(url, val, msgEl, errAr, errEn) {
+        hint(msgEl, isRtl ? 'جارٍ التحقق…' : 'Checking…', 'checking');
+        try {
+            const res = await fetch(url + encodeURIComponent(val));
+            const data = await res.json();
+            if (data.taken) hint(msgEl, isRtl ? errAr : errEn, 'error');
+            else hint(msgEl, '', '');
+        } catch { hint(msgEl, '', ''); }
+    }
+
+    const emailInp = document.getElementById('Email');
+    const emailMsg = document.getElementById('add-email-hint');
+    let emailTimer;
+    if (emailInp && emailMsg) {
+        emailInp.addEventListener('input', function () {
+            clearTimeout(emailTimer);
+            const val = this.value.trim();
+            if (!val || !val.includes('@@')) { hint(emailMsg, '', ''); return; }
+            emailTimer = setTimeout(() =>
+                checkUnique('/Employees/CheckEmail?email=', val, emailMsg,
+                    'البريد الإلكتروني مستخدم مسبقاً', 'Email is already in use'), 500);
+        });
+    }
+
+    const codeInp = document.getElementById('EmployeeCode');
+    const codeMsg = document.getElementById('add-code-hint');
+    let codeTimer;
+    if (codeInp && codeMsg) {
+        codeInp.addEventListener('input', function () {
+            clearTimeout(codeTimer);
+            const val = this.value.trim();
+            if (!val) { hint(codeMsg, '', ''); return; }
+            codeTimer = setTimeout(() =>
+                checkUnique('/Employees/CheckCode?code=', val, codeMsg,
+                    'الرقم الوظيفي مستخدم مسبقاً', 'Employee code is already in use'), 500);
+        });
+    }
+
+    const prefixInp = document.getElementById('add-code-prefix');
+    const autoBtn   = document.getElementById('add-code-auto-btn');
+    if (autoBtn && prefixInp && codeInp) {
+        autoBtn.addEventListener('click', async function () {
+            const prefix   = prefixInp.value.trim();
+            const origHtml = this.innerHTML;
+            this.disabled  = true;
+            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                const r = await fetch('/Employees/NextCode?prefix=' + encodeURIComponent(prefix));
+                const d = await r.json();
+                codeInp.value = d.code;
+                codeInp.dispatchEvent(new Event('input'));
+            } catch { /* ignore */ } finally {
+                this.disabled  = false;
+                this.innerHTML = origHtml;
+            }
+        });
+    }
+
+    const passInp = document.getElementById('InitialPassword');
+    const passMsg = document.getElementById('add-pass-hint');
+    if (passInp && passMsg) {
+        passInp.addEventListener('input', function () {
+            const val = this.value;
+            if (!val) { hint(passMsg, '', ''); return; }
+            // Mirrors the Identity rules in Program.cs: 8+ chars, a digit, an uppercase letter.
+            const problems = [];
+            if (val.length < 8) problems.push(isRtl ? '8 أحرف على الأقل' : 'at least 8 characters');
+            if (!/[0-9]/.test(val)) problems.push(isRtl ? 'رقم' : 'a digit');
+            if (!/[A-Z]/.test(val)) problems.push(isRtl ? 'حرف إنجليزي كبير' : 'an uppercase letter');
+            if (problems.length) {
+                hint(passMsg, (isRtl ? 'كلمة المرور تحتاج: ' : 'Password needs: ') + problems.join(isRtl ? '، ' : ', '), 'error');
+            } else hint(passMsg, '', '');
+        });
+    }
+
+    const coSel   = document.getElementById('add-emp-company');
+    const brSel   = document.getElementById('add-emp-branch');
+    const jtSel   = document.getElementById('add-emp-jt');
+    const deptSel = document.getElementById('add-emp-dept');
+    const spSel   = document.getElementById('add-emp-sponsor');
+
+    function filterBy(select, coId) {
+        for (const opt of select.options) {
+            if (!opt.value) continue;
+            opt.hidden = !!coId && opt.dataset.company !== coId;
+        }
+        const cur = select.options[select.selectedIndex];
+        if (cur && cur.hidden) select.value = '';
+    }
+
+    if (coSel) coSel.addEventListener('change', function () {
+        [brSel, jtSel, deptSel, spSel].forEach(sel => sel && filterBy(sel, this.value));
+    });
+})();
+</script>

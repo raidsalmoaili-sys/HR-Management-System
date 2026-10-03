@@ -1,0 +1,53 @@
+@model Project_HR_1.Models.ViewModels.Entry.CompanyStepVM
+@{ Layout = "_EntryLayout"; }
+
+<div class="entry-header">
+    <div class="entry-eyebrow">@L.L("الخطوة", "Step") 1 @L.L("من", "of") 2</div>
+    <h1>@L.T("chooseCompanyH")</h1>
+    <p>@L.T("chooseCompanyP")</p>
+</div>
+
+<form asp-action="EnterGlobal" method="post" class="scope-cta scope-cta-global" onclick="this.submit();">
+    @Html.AntiForgeryToken()
+    <div class="scope-cta-icon"><i class="fa-solid fa-globe"></i></div>
+    <div class="scope-cta-body">
+        <div class="scope-cta-eyebrow">@L.T("ownerView")</div>
+        <h3>@L.T("scopeGlobal")</h3>
+        <p>@L.T("viewAllCompaniesDesc")</p>
+    </div>
+    <div class="scope-cta-arrow"><i class="fa-solid @(L.IsRtl ? "fa-arrow-left" : "fa-arrow-right")"></i></div>
+</form>
+
+<div class="entry-divider"><span>@L.T("pickCompany")</span></div>
+
+<div class="choice-grid cols-3">
+    @foreach (var c in Model.Companies)
+    {
+        <form asp-action="ChooseCompany" method="post" class="choice-card" onclick="this.submit();">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="companyId" value="@c.Id" />
+            <div class="choice-card-top">
+                <div class="choice-avatar">@c.Initials</div>
+                <div class="choice-card-title">
+                    <h3>@L.L(c.ShortNameAr ?? c.NameAr, c.ShortNameEn ?? c.NameEn)</h3>
+                    <div class="sector"><i class="fa-solid fa-briefcase"></i> @L.L(c.SectorAr ?? "", c.SectorEn ?? "")</div>
+                </div>
+            </div>
+            <div class="choice-card-stats">
+                <div class="choice-stat"><div class="v">@c.EmployeesCount</div><div class="l">@L.T("emp_count")</div></div>
+                <div class="choice-stat"><div class="v">@c.BranchesCount</div><div class="l">@L.T("branch_count")</div></div>
+                @if (!string.IsNullOrEmpty(c.EstablishedYear))
+                {
+                    <div class="choice-stat"><div class="v">@c.EstablishedYear</div><div class="l">@L.T("established")</div></div>
+                }
+            </div>
+            <div class="choice-card-footer">
+                <span class="enter">@L.T("enter") <i class="fa-solid @(L.IsRtl ? "fa-arrow-left" : "fa-arrow-right")"></i></span>
+            </div>
+        </form>
+    }
+    @if (Model.Companies.Count == 0)
+    {
+        <div class="empty-state">@L.L("لا توجد شركات", "No companies available.")</div>
+    }
+</div>

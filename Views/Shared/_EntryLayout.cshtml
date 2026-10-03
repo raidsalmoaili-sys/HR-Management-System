@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="@L.Lang" dir="@(L.IsRtl ? "rtl" : "ltr")">
+<head>
+    <partial name="_HtmlHead" />
+</head>
+<body class="@(L.IsRtl ? "font-tajawal" : "font-inter") min-h-screen flex flex-col bg-slate-50">
+    <div class="entry-shell">
+        @{
+            var stepperModel = ViewData["Stepper"] as Project_HR_1.Models.ViewModels.Entry.StepperVM;
+        }
+        <header class="entry-topbar">
+            <a class="brand-lockup" asp-controller="Entry" asp-action="Welcome">
+                <span class="brand-mark"><i class="fa-solid fa-users-gear"></i></span>
+                <span class="brand-name">@L.T("brand")</span>
+            </a>
+            @if (stepperModel != null)
+            {
+                <partial name="_Stepper" model="stepperModel" />
+            }
+            <div class="entry-topbar-actions">
+                <partial name="_AuthLangSwitch" />
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-ghost btn-sm" title="@L.T("logout")">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i>@L.T("logout")
+                        </button>
+                    </form>
+                }
+            </div>
+        </header>
+        <main class="entry-main">
+            <div class="entry-container">
+                @RenderBody()
+            </div>
+        </main>
+    </div>
+    <partial name="_TweaksFab" />
+    <partial name="_TweaksPanel" />
+    <script>
+        document.addEventListener('click', e => {
+            const opener = e.target.closest('[data-modal-open]');
+            if (opener) {
+                e.preventDefault();
+                document.getElementById(opener.getAttribute('data-modal-open'))?.showModal();
+                return;
+            }
+            const closer = e.target.closest('[data-modal-close]');
+            if (closer) {
+                e.preventDefault();
+                closer.closest('dialog')?.close();
+            }
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

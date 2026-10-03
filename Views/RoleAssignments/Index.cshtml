@@ -1,0 +1,177 @@
+@model Project_HR_1.Models.ViewModels.Management.RoleAssignmentsListVM
+@using Project_HR_1.Services.Scope
+@{ ViewData["Title"] = "Permissions"; }
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("الصلاحيات", "Permissions")</h2>
+        <div class="sub">@L.L("إعطاء الموظفين أدوارهم ونطاق صلاحياتهم", "Give employees their roles and scope")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-create">
+                <i class="fa-solid fa-plus me-1"></i>@L.L("إسناد جديد", "New Assignment")
+            </button>
+        }
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-people-arrows"></i>@L.L("الإسنادات", "Assignments")</div>
+        <span class="text-xs text-muted">@Model.Assignments.Count @L.L("سجل", "rows")</span>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الموظف", "Employee")</th>
+                    <th>@L.L("الدور", "Role")</th>
+                    <th>@L.L("النطاق", "Scope")</th>
+                    <th>@L.L("التاريخ", "Assigned at")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Assignments.Count == 0)
+            {
+                <tr class="empty"><td colspan="5">@L.L("لا توجد إسنادات", "No assignments yet.")</td></tr>
+            }
+            @foreach (var a in Model.Assignments)
+            {
+                <tr>
+                    <td class="font-semibold">@(a.Employee != null ? L.L(a.Employee.NameAr, a.Employee.NameEn) : "—")</td>
+                    <td>@(a.HrRole != null ? L.L(a.HrRole.NameAr, a.HrRole.NameEn) : "—")</td>
+                    <td class="text-muted text-sm">
+                        <span class="badge badge-info">@a.ScopeLevel</span>
+                        @if (a.Company != null) { <span class="ms-2">@L.L(a.Company.NameAr, a.Company.NameEn)</span> }
+                        @if (a.Branch != null)  { <span class="ms-1">› @L.L(a.Branch.NameAr, a.Branch.NameEn ?? a.Branch.NameAr)</span> }
+                    </td>
+                    <td class="text-muted text-xs">@a.AssignedAt.ToString("yyyy-MM-dd")</td>
+                    <td class="text-end">
+                        @if (Model.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@a.Id" method="post" class="inline" onsubmit="return confirm('@L.L("إلغاء الإسناد؟", "Remove assignment?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.CanCreate)
+{
+    <dialog id="modal-create" class="modal">
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-people-arrows"></i></span><span class="mm-txt"><small>@L.L("الصلاحيات", "Permissions")</small>@L.L("إسناد جديد", "New Assignment")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="auth-label">@L.L("الموظف", "Employee")</label>
+                        <select name="EmployeeId" class="select-box">
+                            <option value="">— @L.L("اختر", "select") —</option>
+                            @foreach (var e in Model.Employees)
+                            {
+                                <option value="@e.Id">@L.L(e.NameAr, e.NameEn) — @e.EmployeeCode</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="auth-label">@L.L("الدور", "Role")</label>
+                        <select name="HrRoleId" class="select-box">
+                            <option value="">— @L.L("اختر", "select") —</option>
+                            @foreach (var r in Model.Roles)
+                            {
+                                <option value="@r.Id">@L.L(r.NameAr, r.NameEn)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="auth-label">@L.L("النطاق", "Scope")</label>
+                        <select name="ScopeLevel" class="select-box" data-scope-select>
+                            <option value="@ScopeLevel.Global">@L.L("شامل", "Global") — @L.L("كل الشركات", "All companies")</option>
+                            <option value="@ScopeLevel.Company">@L.L("شركة", "Company") — @L.L("شركة محددة", "One specific company")</option>
+                            <option value="@ScopeLevel.Branch" selected>@L.L("فرع", "Branch") — @L.L("فرع محدد", "One specific branch")</option>
+                        </select>
+                    </div>
+                    <div data-scope-show="Company,Branch">
+                        <label class="auth-label">@L.L("الشركة", "Company")</label>
+                        <select name="CompanyId" class="select-box" data-company-select>
+                            <option value="">— @L.L("اختر", "select") —</option>
+                            @foreach (var c in Model.Companies)
+                            {
+                                <option value="@c.Id">@L.L(c.NameAr, c.NameEn)</option>
+                            }
+                        </select>
+                    </div>
+                    <div data-scope-show="Branch">
+                        <label class="auth-label">@L.L("الفرع", "Branch")</label>
+                        <select name="BranchId" class="select-box" data-branch-select>
+                            <option value="">— @L.L("اختر", "select") —</option>
+                            @foreach (var b in Model.Branches)
+                            {
+                                <option value="@b.Id" data-company-id="@b.CompanyId">@L.L(b.NameAr, b.NameEn ?? b.NameAr)</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("إسناد", "Assign")</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@section Scripts {
+<script>
+(function () {
+    const dialog = document.getElementById('modal-create');
+    if (!dialog) return;
+    const scopeSel   = dialog.querySelector('[data-scope-select]');
+    const companySel = dialog.querySelector('[data-company-select]');
+    const branchSel  = dialog.querySelector('[data-branch-select]');
+    const branchOptions = branchSel ? Array.from(branchSel.querySelectorAll('option[data-company-id]')) : [];
+
+    function syncFromScope() {
+        const lvl = scopeSel.value; // "Global" | "Company" | "Branch"
+        dialog.querySelectorAll('[data-scope-show]').forEach(box => {
+            const shown = box.getAttribute('data-scope-show').split(',').includes(lvl);
+            box.style.display = shown ? '' : 'none';
+            box.querySelectorAll('select').forEach(s => { if (!shown) s.value = ''; });
+        });
+    }
+
+    function filterBranches() {
+        if (!companySel || !branchSel) return;
+        const cid = companySel.value;
+        let firstVisible = null;
+        branchOptions.forEach(opt => {
+            const match = !cid || opt.getAttribute('data-company-id') === cid;
+            opt.hidden = !match;
+            if (match && !firstVisible) firstVisible = opt;
+        });
+        // If the current selection is now hidden, reset to placeholder.
+        const sel = branchSel.querySelector('option[value="' + branchSel.value + '"]');
+        if (sel && sel.hidden) branchSel.value = '';
+    }
+
+    scopeSel.addEventListener('change', syncFromScope);
+    if (companySel) companySel.addEventListener('change', filterBranches);
+
+    syncFromScope();
+    filterBranches();
+})();
+</script>
+}

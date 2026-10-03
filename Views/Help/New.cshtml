@@ -1,0 +1,41 @@
+@model Project_HR_1.Models.ViewModels.Help.CreateTicketVM
+@{ ViewData["Title"] = L.T("help_new_ticket"); }
+
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold text-ink mb-4">@L.T("help_new_ticket")</h1>
+
+    <form asp-action="New" method="post" class="card space-y-4">
+        <div asp-validation-summary="ModelOnly" class="auth-error"></div>
+
+        <div>
+            <label asp-for="Subject" class="auth-label">@L.T("help_subject")</label>
+            <input asp-for="Subject" class="auth-input" />
+            <span asp-validation-for="Subject" class="text-rose-600 text-xs"></span>
+        </div>
+
+        <div>
+            <label asp-for="Priority" class="auth-label">@L.T("help_priority")</label>
+            <select asp-for="Priority" class="auth-input">
+                <option value="0">@L.T("help_priority_low")</option>
+                <option value="1" selected>@L.T("help_priority_normal")</option>
+                <option value="2">@L.T("help_priority_high")</option>
+                <option value="3">@L.T("help_priority_urgent")</option>
+            </select>
+        </div>
+
+        <div>
+            <label asp-for="Description" class="auth-label">@L.T("help_description")</label>
+            <textarea asp-for="Description" rows="6" class="auth-input"></textarea>
+            <span asp-validation-for="Description" class="text-rose-600 text-xs"></span>
+        </div>
+
+        <div class="flex justify-end gap-2">
+            <a asp-action="Index" class="btn btn-ghost">@L.T("cancel")</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fa-solid fa-paper-plane me-2"></i>@L.T("help_ticket_submit")
+            </button>
+        </div>
+    </form>
+</div>
+
+@section Scripts { @await Html.PartialAsync("_ValidationScriptsPartial") }

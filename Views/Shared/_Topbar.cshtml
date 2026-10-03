@@ -1,0 +1,146 @@
+@inject Project_HR_1.Models.AppDbContext _db
+@inject Microsoft.AspNetCore.Identity.UserManager<Project_HR_1.Models.ApplicationUser> _users
+@{
+    var scope = Scope.Current;
+    Project_HR_1.Models.Hr.Company? curCompany = null;
+    Project_HR_1.Models.Hr.Branch? curBranch = null;
+    if (scope.CompanyId.HasValue)
+        curCompany = await _db.Companies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == scope.CompanyId.Value);
+    if (scope.BranchId.HasValue)
+        curBranch = await _db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == scope.BranchId.Value);
+
+    var arrow = L.IsRtl ? "fa-chevron-left" : "fa-chevron-right";
+    var scopeColor = scope.Level switch {
+        ScopeLevel.Branch  => "#16a085",
+        ScopeLevel.Company => "#c8a84b",
+        _                  => "#8e44ad",
+    };
+
+    // Resolve current user display name / title.
+    string userInitials = L.IsRtl ? "مس" : "AM";
+    string userName = "Admin";
+    string userTitle = L.L("مدير النظام", "System Administrator");
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        var isSuper = User.IsInRole(IdentityRoles.SuperAdmin);
+        if (!isSuper)
+        {
+            var uid = _users.GetUserId(User);
+            var emp = await _db.Employees.AsNoTracking()
+                .Include(e => e.JobTitle)
+                .FirstOrDefaultAsync(e => e.UserId == uid);
+            if (emp != null)
+            {
+                userInitials = emp.Initials;
+                userName = L.L(emp.NameAr, emp.NameEn);
+                userTitle = emp.JobTitle != null
+                    ? L.L(emp.JobTitle.NameAr, emp.JobTitle.NameEn)
+                    : L.L(emp.JobTitleAr ?? "", emp.JobTitleEn ?? "");
+            }
+            else
+            {
+                userName = User.Identity.Name ?? "";
+                userTitle = L.L("موظف", "Employee");
+            }
+        }
+    }
+
+    // Localised date.
+    var now = DateTime.Now;
+    string dateStr;
+    if (L.IsRtl)
+    {
+        var daysAr = new[] { "الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت" };
+        var monthsAr = new[] { "يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر" };
+        dateStr = $"{daysAr[(int)now.DayOfWeek]} {now.Day} {monthsAr[now.Month - 1]}";
+    }
+    else
+    {
+        dateStr = now.ToString("ddd d MMM", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    // Current service for the breadcrumb.
+    var currentId = ViewData["CurrentServiceId"] as string;
+    var currentSvc = string.IsNullOrEmpty(currentId) ? null : ServiceCatalog.ById(currentId);
+    var token = Html.AntiForgeryToken();
+}
+<header class="topbar topbar-app">
+    <div class="topbar-left">
+        <a class="brand-lockup" asp-controller="Entry" asp-action="ChangeContext">
+            <span class="brand-mark"><i class="fa-solid fa-users-gear"></i></span>
+            <span class="brand-name hidden md:inline">@L.T("brand")</span>
+        </a>
+
+        <button type="button" class="topbar-btn" data-go-back="@Url.Action("Launcher", "Entry")" title="@L.L("رجوع", "Back")">
+            <i class="fa-solid @arrow"></i>
+        </button>
+
+        <span class="topbar-divider"></span>
+
+        <div class="topbar-workspace">
+            @if (curCompany != null)
+            {
+                <i class="fa-solid @arrow text-slate-300 text-[10px]"></i>
+                <form asp-controller="Entry" asp-action="SwitchScope" method="post" class="inline">
+                    @token
+                    <input type="hidden" name="level" value="Company" />
+                    <input type="hidden" name="companyId" value="@curCompany.Id" />
+                    <button type="submit" class="ws-chip @(scope.Level == ScopeLevel.Company ? "active" : "")" title="@L.T("level_company")">
+                        <i class="fa-solid fa-building" style="color:#c8a84b"></i>
+                        <span>@L.L(curCompany.ShortNameAr ?? curCompany.NameAr, curCompany.ShortNameEn ?? curCompany.NameEn)</span>
+                    </button>
+                </form>
+            }
+
+            @if (curBranch != null)
+            {
+                <i class="fa-solid @arrow text-slate-300 text-[10px]"></i>
+                <form asp-controller="Entry" asp-action="SwitchScope" method="post" class="inline">
+                    @token
+                    <input type="hidden" name="level" value="Branch" />
+                    <input type="hidden" name="companyId" value="@curCompany?.Id" />
+                    <input type="hidden" name="branchId" value="@curBranch.Id" />
+                    <button type="submit" class="ws-chip @(scope.Level == ScopeLevel.Branch ? "active" : "")" title="@L.T("level_branch")">
+                        <i class="fa-solid fa-location-dot" style="color:#16a085"></i>
+                        <span>@L.L(curBranch.NameAr, curBranch.NameEn ?? curBranch.NameAr)</span>
+                    </button>
+                </form>
+            }
+
+        </div>
+
+        @if (currentSvc != null)
+        {
+            <span class="topbar-divider"></span>
+            <nav class="topbar-bc">
+                <a asp-controller="Entry" asp-action="Launcher" title="@L.T("home")">
+                    <i class="fa-solid fa-house"></i>
+                </a>
+                <span class="sep"><i class="fa-solid @arrow"></i></span>
+                <span class="current">
+                    <i class="fa-solid @currentSvc.Icon"></i>
+                    @L.L(currentSvc.NameAr, currentSvc.NameEn)
+                </span>
+            </nav>
+        }
+    </div>
+
+    <div class="topbar-right">
+        <partial name="_AuthLangSwitch" />
+        <span class="topbar-date"><i class="fa-solid fa-calendar"></i>@dateStr</span>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
+                @token
+                <button type="submit" class="topbar-user" title="@L.T("logout")">
+                    <span class="user-avatar">@userInitials</span>
+                    <span class="user-info-mini">
+                        <h4>@userName</h4>
+                        <span>@userTitle</span>
+                    </span>
+                    <i class="fa-solid fa-right-from-bracket text-muted ms-1"></i>
+                </button>
+            </form>
+        }
+    </div>
+</header>

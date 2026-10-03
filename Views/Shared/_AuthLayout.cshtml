@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="@L.Lang" dir="@(L.IsRtl ? "rtl" : "ltr")">
+<head>
+    <partial name="_HtmlHead" />
+</head>
+<body class="@(L.IsRtl ? "font-tajawal" : "font-inter") bs-page-bg">
+    <main class="bs-page">
+        @RenderBody()
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

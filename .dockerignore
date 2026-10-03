@@ -1,0 +1,14 @@
+bin/
+obj/
+node_modules/
+.vs/
+.vscode/
+.idea/
+.git/
+.claude/
+.DS_Store
+*.user
+appsettings.Development.json
+docs/
+README.md
+CLAUDE.md

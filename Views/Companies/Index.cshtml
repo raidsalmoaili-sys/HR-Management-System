@@ -1,0 +1,134 @@
+@model Project_HR_1.Models.ViewModels.Management.CompaniesListVM
+@{ ViewData["Title"] = "Companies"; var afToken = Html.AntiForgeryToken(); }
+
+@if (TempData["Error"] is string errMsg)
+{
+    <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>@errMsg</span>
+    </div>
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("الشركات", "Companies")</h2>
+        <div class="sub">@L.L("إدارة الشركات وتفاصيلها", "Manage companies and their details")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-create">
+                <i class="fa-solid fa-plus me-1"></i>@L.L("إضافة شركة", "Add Company")
+            </button>
+        }
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-building"></i>@L.L("قائمة الشركات", "All Companies")</div>
+        <span class="text-xs text-muted">@Model.Companies.Count @L.L("سجل", "rows")</span>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الاسم", "Name")</th>
+                    <th>@L.L("القطاع", "Sector")</th>
+                    <th>@L.L("المقر", "HQ")</th>
+                    <th class="text-center">@L.L("الموظفون", "Employees")</th>
+                    <th class="text-center">@L.L("الفروع", "Branches")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Companies.Count == 0)
+            {
+                <tr class="empty"><td colspan="5">@L.L("لا توجد شركات بعد", "No companies yet.")</td></tr>
+            }
+            @foreach (var c in Model.Companies)
+            {
+                <tr>
+                    <td>
+                        <div class="flex items-center gap-2">
+                            <div class="w-9 h-9 rounded-ctrl bg-accent text-primary text-xs font-bold flex items-center justify-center">@c.Initials</div>
+                            <div>
+                                <div class="font-semibold">@L.L(c.NameAr, c.NameEn)</div>
+                                <div class="text-xs text-muted">@L.L(c.ShortNameAr ?? "", c.ShortNameEn ?? "")</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-muted">@L.L(c.SectorAr ?? "—", c.SectorEn ?? "—")</td>
+                    <td class="text-muted">@(c.HeadquartersAr ?? "—")</td>
+                    <td class="text-center">@c.EmployeesCount</td>
+                    <td class="text-center">@c.BranchesCount</td>
+                    <td class="text-end whitespace-nowrap">
+                        @if (Model.CanEdit)
+                        {
+                            <button type="button" class="icon-btn" data-modal-open="modal-edit-@c.Id" title="@L.L("تعديل", "Edit")"><i class="fa-solid fa-pen"></i></button>
+                        }
+                        @if (Model.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="inline" onsubmit="return confirm('@L.L("حذف الشركة؟", "Delete this company?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger" title="@L.L("حذف", "Delete")"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.CanCreate)
+{
+    <dialog id="modal-create" class="modal">
+        <form method="post" asp-action="Create">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-building"></i></span><span class="mm-txt"><small>@L.L("الشركات", "Companies")</small>@L.L("إضافة شركة", "New Company")</span></span>
+                <button type="button" class="modal-close" data-modal-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <partial name="_CompanyFields" model="new Project_HR_1.Models.ViewModels.Management.CompanyEditVM()" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("إنشاء", "Create")</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@if (Model.CanEdit)
+{
+    foreach (var c in Model.Companies)
+    {
+        var vm = new Project_HR_1.Models.ViewModels.Management.CompanyEditVM
+        {
+            Id = c.Id, NameAr = c.NameAr, NameEn = c.NameEn,
+            UnifiedNumber = c.UnifiedNumber, EstablishmentNumber = c.EstablishmentNumber,
+            CommercialRegistration = c.CommercialRegistration,
+            SectorAr = c.SectorAr, EstablishedYear = c.EstablishedYear,
+            HeadquartersAr = c.HeadquartersAr,
+        };
+        <dialog id="modal-edit-@c.Id" class="modal">
+            <form method="post" asp-action="Edit" asp-route-id="@c.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-pen-to-square"></i></span><span class="mm-txt"><small>@L.L("الشركات", "Companies")</small>@L.L("تعديل الشركة", "Edit Company")</span></span>
+                    <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <partial name="_CompanyFields" model="vm" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="btn btn-primary">@L.L("حفظ", "Save")</button>
+                </div>
+            </form>
+        </dialog>
+    }
+}

@@ -1,0 +1,244 @@
+@model Project_HR_1.Models.ViewModels.Management.EmployeesListVM
+@using Project_HR_1.Models.ViewModels.Management
+@{
+    ViewData["Title"] = "Employees";
+    var addVm = Model.AddEmployee;
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("الموظفون", "Employees")</h2>
+        <div class="sub">@L.L("قاعدة بيانات الموظفين", "Employee database")</div>
+    </div>
+    <div class="page-head-actions">
+        <a asp-action="PrintSetup" class="btn btn-ghost btn-sm">
+            <i class="fa-solid fa-print me-1"></i>@L.L("طباعة كشف الموظفين", "Print Employee Roster")
+        </a>
+        @if (Model.CanCreate)
+        {
+            <a asp-action="BulkImport" class="btn btn-ghost btn-sm">
+                <i class="fa-solid fa-file-excel me-1"></i>@L.L("استيراد من Excel", "Bulk Import")
+            </a>
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-create">
+                <i class="fa-solid fa-user-plus me-1"></i>@L.L("إضافة موظف", "Add Employee")
+            </button>
+        }
+    </div>
+</div>
+
+@if (TempData["err"] is string err && !string.IsNullOrEmpty(err))
+{
+    <div class="auth-error mb-4">
+        <i class="fa-solid fa-circle-exclamation me-1"></i> @err
+    </div>
+}
+@if (TempData["ok"] is string ok && !string.IsNullOrEmpty(ok))
+{
+    <div class="mb-4 rounded-lg bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-700">
+        <i class="fa-solid fa-circle-check me-1"></i> @ok
+    </div>
+}
+
+<partial name="_EmployeeFilters" model="Model" />
+
+@if (Model.CanDelete)
+{
+    <form id="bulk-delete-form" asp-action="DeleteBulk" method="post">
+        @Html.AntiForgeryToken()
+        <div id="bulk-bar" class="hidden mb-3 flex items-center gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+            <span class="text-sm font-medium text-red-700">
+                @L.L("تم تحديد", "Selected")
+                <strong id="bulk-count">0</strong>
+                @L.L("موظف", "employee(s)")
+            </span>
+            <button type="button" id="bulk-delete-btn"
+                    class="ms-auto btn btn-sm bg-red-600 hover:bg-red-700 text-white">
+                <i class="fa-solid fa-trash me-1"></i>@L.L("حذف المحددين", "Delete Selected")
+            </button>
+        </div>
+
+        <div class="data-card">
+            <div class="card-head">
+                <div class="card-title"><i class="fa-solid fa-id-card"></i>@L.L("كل الموظفين", "All Employees")</div>
+                <span class="text-xs text-muted">@(Model.Filter.Any ? $"{Model.Employees.Count} {L.L("من", "of")} {Model.TotalCount}" : Model.Employees.Count.ToString()) @L.L("سجل", "rows")</span>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="w-8"><input type="checkbox" id="chk-all" class="cursor-pointer"></th>
+                            <th>@L.L("الموظف", "Employee")</th>
+                            <th>@L.L("الشركة", "Company")</th>
+                            <th>@L.L("الفرع", "Branch")</th>
+                            <th>@L.L("المسمى", "Job Title")</th>
+                            <th class="text-center">@L.L("الحالة", "Status")</th>
+                            <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Employees.Count == 0)
+                    {
+                        <tr class="empty"><td colspan="7">@(Model.Filter.Any ? L.L("لا يوجد موظفون يطابقون البحث أو الفلاتر", "No employees match the search/filters.") : L.L("لا يوجد موظفون", "No employees."))</td></tr>
+                    }
+                    @foreach (var e in Model.Employees)
+                    {
+                        <tr>
+                            <td><input type="checkbox" name="ids" value="@e.Id" class="row-chk cursor-pointer"></td>
+                            <td>
+                                <div class="emp-cell">
+                                    <div class="emp-avatar" style="background:@(e.AvatarColor ?? "#1a2744")">@e.Initials</div>
+                                    <div class="meta">
+                                        <span class="name">@Hl(L.L(e.NameAr, e.NameEn))</span>
+                                        <span class="role">@Hl(e.EmployeeCode + (string.IsNullOrEmpty(e.Email) ? "" : " · " + e.Email))</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-muted">@(e.Company != null ? L.L(e.Company.NameAr, e.Company.NameEn) : "—")</td>
+                            <td class="text-muted">@(e.Branch != null ? L.L(e.Branch.NameAr, e.Branch.NameEn ?? e.Branch.NameAr) : "—")</td>
+                            <td class="text-muted">@(e.JobTitle != null ? L.L(e.JobTitle.NameAr, e.JobTitle.NameEn) : "—")</td>
+                            <td class="text-center"><partial name="_StatusBadge" model="e" view-data='new ViewDataDictionary(ViewData) { ["canEdit"] = Model.CanEditStatus }' /></td>
+                            <td class="text-end whitespace-nowrap">
+                                <a asp-action="Detail" asp-route-id="@e.Id" class="icon-btn" title="@L.L("عرض", "View")"><i class="fa-solid fa-eye"></i></a>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </form>
+
+    <script>
+    (function () {
+        const chkAll = document.getElementById('chk-all');
+        const bar    = document.getElementById('bulk-bar');
+        const count  = document.getElementById('bulk-count');
+        const form   = document.getElementById('bulk-delete-form');
+        const delBtn = document.getElementById('bulk-delete-btn');
+
+        function update() {
+            const checked = document.querySelectorAll('.row-chk:checked');
+            const n = checked.length;
+            count.textContent = n;
+            bar.classList.toggle('hidden', n === 0);
+            chkAll.indeterminate = n > 0 && n < document.querySelectorAll('.row-chk').length;
+            chkAll.checked = n > 0 && n === document.querySelectorAll('.row-chk').length;
+        }
+
+        chkAll.addEventListener('change', () => {
+            document.querySelectorAll('.row-chk').forEach(c => c.checked = chkAll.checked);
+            update();
+        });
+
+        document.querySelectorAll('.row-chk').forEach(c => c.addEventListener('change', update));
+
+        delBtn.addEventListener('click', () => {
+            const n = document.querySelectorAll('.row-chk:checked').length;
+            const msg = '@L.L("هل أنت متأكد من حذف", "Are you sure you want to delete")' + ' ' + n + ' ' + '@L.L("موظف؟ سيتم حذف حساباتهم أيضاً.", "employee(s)? Their accounts will also be deleted.")';
+            if (confirm(msg)) form.submit();
+        });
+    })();
+    </script>
+}
+else
+{
+    <div class="data-card">
+        <div class="card-head">
+            <div class="card-title"><i class="fa-solid fa-id-card"></i>@L.L("كل الموظفين", "All Employees")</div>
+            <span class="text-xs text-muted">@(Model.Filter.Any ? $"{Model.Employees.Count} {L.L("من", "of")} {Model.TotalCount}" : Model.Employees.Count.ToString()) @L.L("سجل", "rows")</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@L.L("الموظف", "Employee")</th>
+                        <th>@L.L("الشركة", "Company")</th>
+                        <th>@L.L("الفرع", "Branch")</th>
+                        <th>@L.L("المسمى", "Job Title")</th>
+                        <th class="text-center">@L.L("الحالة", "Status")</th>
+                        <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Employees.Count == 0)
+                {
+                    <tr class="empty"><td colspan="6">@(Model.Filter.Any ? L.L("لا يوجد موظفون يطابقون البحث أو الفلاتر", "No employees match the search/filters.") : L.L("لا يوجد موظفون", "No employees."))</td></tr>
+                }
+                @foreach (var e in Model.Employees)
+                {
+                    <tr>
+                        <td>
+                            <div class="emp-cell">
+                                <div class="emp-avatar" style="background:@(e.AvatarColor ?? "#1a2744")">@e.Initials</div>
+                                <div class="meta">
+                                    <span class="name">@Hl(L.L(e.NameAr, e.NameEn))</span>
+                                    <span class="role">@Hl(e.EmployeeCode + (string.IsNullOrEmpty(e.Email) ? "" : " · " + e.Email))</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-muted">@(e.Company != null ? L.L(e.Company.NameAr, e.Company.NameEn) : "—")</td>
+                        <td class="text-muted">@(e.Branch != null ? L.L(e.Branch.NameAr, e.Branch.NameEn ?? e.Branch.NameAr) : "—")</td>
+                        <td class="text-muted">@(e.JobTitle != null ? L.L(e.JobTitle.NameAr, e.JobTitle.NameEn) : "—")</td>
+                        <td class="text-center"><partial name="_StatusBadge" model="e" view-data='new ViewDataDictionary(ViewData) { ["canEdit"] = Model.CanEditStatus }' /></td>
+                        <td class="text-end whitespace-nowrap">
+                            <a asp-action="Detail" asp-route-id="@e.Id" class="icon-btn" title="@L.L("عرض", "View")"><i class="fa-solid fa-eye"></i></a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<partial name="_StatusModal" />
+
+@if (Model.CanCreate)
+{
+    <dialog id="modal-create" class="modal wide">
+        <form method="post" asp-action="Create" enctype="multipart/form-data" id="add-employee-form">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-user-plus"></i></span><span class="mm-txt"><small>@L.L("الموظفون", "Employees")</small>@L.L("إضافة موظف", "Add Employee")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <partial name="_AddEmployeeFields" model="addVm" />
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("خروج", "Close")</button>
+                <button type="reset" class="btn btn-ghost">@L.L("مسح البيانات", "Clear")</button>
+                <button type="submit" id="add-save-new-btn" name="SaveAndAddAnother" value="true" class="btn btn-ghost">
+                    @L.L("حفظ وإضافة آخر", "Save & Add Another")
+                </button>
+                <button type="submit" class="btn btn-primary">@L.L("حفظ البيانات", "Save")</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+    (function () {
+        const shouldReopen = @Html.Raw((TempData["reopenAddModal"] is bool b && b) || (ViewData["reopenAddModal"] is bool v && v) ? "true" : "false");
+        if (shouldReopen) document.getElementById('modal-create')?.showModal();
+    })();
+    </script>
+}
+
+@functions {
+    // Wraps every match of the search term in <mark class="hl-q"> (bold + dark). Text is HTML-encoded.
+    private Microsoft.AspNetCore.Html.IHtmlContent Hl(string? text)
+    {
+        var q = Model.Filter?.Q?.Trim();
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(q)) return new Microsoft.AspNetCore.Html.HtmlString(System.Net.WebUtility.HtmlEncode(text ?? ""));
+        var sb = new System.Text.StringBuilder(); int pos = 0;
+        while (true)
+        {
+            var i = text.IndexOf(q, pos, StringComparison.OrdinalIgnoreCase);
+            if (i < 0) break;
+            sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..i])).Append("<mark class=\"hl-q\">").Append(System.Net.WebUtility.HtmlEncode(text.Substring(i, q.Length))).Append("</mark>");
+            pos = i + q.Length;
+        }
+        sb.Append(System.Net.WebUtility.HtmlEncode(text[pos..]));
+        return new Microsoft.AspNetCore.Html.HtmlString(sb.ToString());
+    }
+}

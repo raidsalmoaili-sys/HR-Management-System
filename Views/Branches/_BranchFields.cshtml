@@ -1,0 +1,95 @@
+@model Project_HR_1.Models.ViewModels.Management.BranchEditVM
+<input type="hidden" asp-for="Id" />
+<div asp-validation-summary="ModelOnly" class="auth-error"></div>
+
+<div class="mb-4">
+    <label asp-for="CompanyId" class="auth-label">@L.L("الشركة", "Company")</label>
+    <select asp-for="CompanyId" class="select-box">
+        <option value="">— @L.L("اختر", "select") —</option>
+        @foreach (var c in Model.Companies)
+        {
+            <option value="@c.Id">@L.L(c.NameAr, c.NameEn)</option>
+        }
+    </select>
+</div>
+
+<p class="text-xs font-semibold text-muted uppercase tracking-wider border-b pb-1 mb-3">@L.L("اسم الفرع", "Branch Name")</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+    <div>
+        <label asp-for="NameAr" class="auth-label">@L.L("الاسم (عربي)", "Name (AR)")</label>
+        <input asp-for="NameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NameEn" class="auth-label">@L.L("الاسم (إنجليزي)", "Name (EN)")</label>
+        <input asp-for="NameEn" class="auth-input" />
+    </div>
+
+</div>
+
+<p class="text-xs font-semibold text-muted uppercase tracking-wider border-b pb-1 mb-3">@L.L("رخصة الفرع", "Branch License")</p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+    <div>
+        <label asp-for="LicenseNumber" class="auth-label">@L.L("رقم الرخصة", "License Number")</label>
+        <input asp-for="LicenseNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="LicenseStartDate" class="auth-label">@L.L("تاريخ البداية", "Start Date")</label>
+        <input asp-for="LicenseStartDate" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="LicenseEndDate" class="auth-label">@L.L("تاريخ النهاية", "End Date")</label>
+        <input asp-for="LicenseEndDate" type="date" class="auth-input" />
+    </div>
+</div>
+
+<p class="text-xs font-semibold text-muted uppercase tracking-wider border-b pb-1 mb-3">@L.L("شهادة ضريبة القيمة المضافة", "VAT Certificate")</p>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+    <div>
+        <label asp-for="VatNumber" class="auth-label">@L.L("الرقم الضريبي", "VAT Number")</label>
+        <input asp-for="VatNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="VatStartDate" class="auth-label">@L.L("تاريخ البداية", "Start Date")</label>
+        <input asp-for="VatStartDate" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="VatEndDate" class="auth-label">@L.L("تاريخ النهاية", "End Date")</label>
+        <input asp-for="VatEndDate" type="date" class="auth-input" />
+    </div>
+</div>
+
+<p class="text-xs font-semibold text-muted uppercase tracking-wider border-b pb-1 mb-3">@L.L("العنوان الوطني", "National Address")</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label asp-for="NatAddressShort" class="auth-label">@L.L("العنوان المختصر", "Short Address")</label>
+        <input asp-for="NatAddressShort" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NatAddressRegDate" class="auth-label">@L.L("تاريخ التسجيل", "Registration Date")</label>
+        <input asp-for="NatAddressRegDate" type="date" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="BuildingNumber" class="auth-label">@L.L("رقم المبنى", "Building Number")</label>
+        <input asp-for="BuildingNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="StreetName" class="auth-label">@L.L("اسم الشارع", "Street Name")</label>
+        <input asp-for="StreetName" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="SecondaryNumber" class="auth-label">@L.L("الرقم الفرعي", "Secondary Number")</label>
+        <input asp-for="SecondaryNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="DistrictName" class="auth-label">@L.L("اسم الحي", "District")</label>
+        <input asp-for="DistrictName" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="PostalCode" class="auth-label">@L.L("الرمز البريدي", "Postal Code")</label>
+        <input asp-for="PostalCode" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="City" class="auth-label">@L.L("المدينة", "City")</label>
+        <input asp-for="City" class="auth-input" />
+    </div>
+</div>

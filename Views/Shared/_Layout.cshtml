@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="@L.Lang" dir="@(L.IsRtl ? "rtl" : "ltr")">
+<head>
+    <partial name="_HtmlHead" />
+</head>
+<body class="@(L.IsRtl ? "font-tajawal" : "font-inter") min-h-screen flex flex-col bg-slate-50">
+    <partial name="_Topbar" />
+    <main class="flex-1 page-area">
+        @RenderBody()
+    </main>
+    <partial name="_TweaksFab" />
+    <partial name="_TweaksPanel" />
+    <script>
+        document.addEventListener('click', e => {
+            const opener = e.target.closest('[data-modal-open]');
+            if (opener) {
+                e.preventDefault();
+                document.getElementById(opener.getAttribute('data-modal-open'))?.showModal();
+                return;
+            }
+            const closer = e.target.closest('[data-modal-close]');
+            if (closer) {
+                e.preventDefault();
+                closer.closest('dialog')?.close();
+                return;
+            }
+            const backer = e.target.closest('[data-go-back]');
+            if (backer) {
+                e.preventDefault();
+                if (history.length > 1) history.back();
+                else window.location.href = backer.getAttribute('data-go-back') || '/';
+            }
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

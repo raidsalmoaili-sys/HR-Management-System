@@ -1,0 +1,85 @@
+@model Project_HR_1.Models.ViewModels.Management.AddEmployeeVM
+
+<h4 class="font-semibold mb-2">@L.L("البيانات البنكية", "Bank Info")</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div>
+        <label asp-for="BankName" class="auth-label">@L.L("اسم البنك", "Bank")</label>
+        <select asp-for="BankName" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var bank in Model.Banks)
+            {
+                <option value="@bank.NameAr">@L.L(bank.NameAr, bank.NameEn)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="Iban" class="auth-label">@L.L("رقم الآيبان (IBAN)", "IBAN")</label>
+        <input asp-for="Iban" class="auth-input" placeholder="SA0000000000000000000000" />
+        <span class="text-danger field-validation-valid" data-valmsg-for="Iban"></span>
+    </div>
+    <div>
+        <label asp-for="BeneficiaryName" class="auth-label">@L.L("اسم المستفيد", "Beneficiary name")</label>
+        <input asp-for="BeneficiaryName" class="auth-input" />
+    </div>
+    <div class="flex items-end">
+        <span class="text-xs text-muted">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            @L.L("أرفق شهادة الآيبان من تبويب الوثائق الرسمية.", "Attach the IBAN certificate from the Official Documents tab.")
+        </span>
+    </div>
+</div>
+
+<h4 class="font-semibold mb-2">@L.L("البدلات", "Allowances")</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div>
+        <label asp-for="HousingAllowance" class="auth-label">@L.L("بدل سكن", "Housing allowance")</label>
+        <input asp-for="HousingAllowance" type="number" step="0.01" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="TransportAllowance" class="auth-label">@L.L("بدل نقل", "Transport allowance")</label>
+        <input asp-for="TransportAllowance" type="number" step="0.01" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="OtherAllowance" class="auth-label">@L.L("بدلات أخرى", "Other allowance")</label>
+        <input asp-for="OtherAllowance" type="number" step="0.01" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="OtherAllowanceDescription" class="auth-label">@L.L("وصف البدلات الأخرى", "Other allowance description")</label>
+        <input asp-for="OtherAllowanceDescription" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EndOfServiceAdvance" class="auth-label">@L.L("بدل مقدّم نهاية الخدمة", "End-of-service advance")</label>
+        <input asp-for="EndOfServiceAdvance" type="number" step="0.01" class="auth-input" data-eosa />
+        <div class="text-xs text-muted mt-1">
+            @L.L("يُفعَّل فقط لغير السعوديين، حسب الجنسية المختارة في تبويب البيانات العامة.",
+                 "Enabled only for non-Saudi employees, based on the nationality selected in the General tab.")
+        </div>
+    </div>
+</div>
+
+<h4 class="font-semibold mb-2">@L.L("نوع الراتب", "Salary type")</h4>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label asp-for="SalaryType" class="auth-label">@L.L("نوع الراتب", "Salary type")</label>
+        <select asp-for="SalaryType" data-salary-type class="select-box">
+            <option value="Monthly">@L.L("شهري", "Monthly")</option>
+            <option value="Daily">@L.L("يومي", "Daily")</option>
+            <option value="Contract">@L.L("عقد", "Contract")</option>
+        </select>
+    </div>
+    <div></div>
+    <div data-salary-block="daily" class="hidden">
+        <label asp-for="DailyRate" class="auth-label">@L.L("قيمة اليومية", "Daily rate")</label>
+        <input asp-for="DailyRate" type="number" step="0.01" class="auth-input" />
+    </div>
+    <div data-salary-block="contract" class="hidden grid grid-cols-2 gap-4 md:col-span-2">
+        <div>
+            <label asp-for="ContractTotalValue" class="auth-label">@L.L("قيمة العقد الإجمالية", "Contract total value")</label>
+            <input asp-for="ContractTotalValue" type="number" step="0.01" class="auth-input" />
+        </div>
+        <div>
+            <label asp-for="FinancialContractDurationMonths" class="auth-label">@L.L("مدة العقد بالأشهر", "Contract duration (months)")</label>
+            <input asp-for="FinancialContractDurationMonths" type="number" min="1" class="auth-input" />
+        </div>
+    </div>
+</div>

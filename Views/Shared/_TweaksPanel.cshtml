@@ -1,0 +1,90 @@
+@{
+    var accents  = new[] { "#c8a84b", "#b87333", "#c0492c", "#16a085", "#2980b9" };
+    var primaries = new[] { "#1a2744", "#1c1f26", "#0e3a52", "#311b46", "#1f3d2b" };
+}
+<div id="tweaksPanel" class="tweaks-panel hidden">
+    <div class="flex items-center justify-between mb-3">
+        <div class="font-bold text-ink"><i class="fa-solid fa-sliders me-2"></i>@L.T("tweaksTitle")</div>
+        <button type="button" id="tweaksClose" class="text-muted hover:text-ink"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="mb-3">
+        <div class="text-xs text-muted mb-2">@L.T("accentColor")</div>
+        <div class="flex gap-2" id="accentSwatches">
+            @foreach (var c in accents)
+            {
+                <div class="swatch" data-accent="@c" style="background:@c"></div>
+            }
+        </div>
+    </div>
+    <div class="mb-3">
+        <div class="text-xs text-muted mb-2">@L.T("primaryColor")</div>
+        <div class="flex gap-2" id="primarySwatches">
+            @foreach (var c in primaries)
+            {
+                <div class="swatch" data-primary="@c" style="background:@c"></div>
+            }
+        </div>
+    </div>
+    <div class="mb-3">
+        <div class="text-xs text-muted mb-2">@L.T("density")</div>
+        <div class="flex gap-2">
+            <button type="button" class="btn btn-ghost text-xs" data-density="comfortable">@L.T("comfortable")</button>
+            <button type="button" class="btn btn-ghost text-xs" data-density="compact">@L.T("compact")</button>
+        </div>
+    </div>
+    <button type="button" id="tweaksReset" class="btn btn-ghost text-xs w-full">@L.T("resetDefault")</button>
+</div>
+
+<script>
+(function() {
+  const fab   = document.getElementById('tweaksFab');
+  const panel = document.getElementById('tweaksPanel');
+  const close = document.getElementById('tweaksClose');
+  const root  = document.documentElement;
+  if (!fab || !panel) return;
+
+  fab.addEventListener('click', () => panel.classList.toggle('hidden'));
+  close.addEventListener('click', () => panel.classList.add('hidden'));
+
+  function readCookie(name) {
+    const m = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+    return m ? decodeURIComponent(m[2]) : null;
+  }
+  function writeCookie(name, value) {
+    document.cookie = name + '=' + encodeURIComponent(value) + ';path=/;max-age=' + (60*60*24*365);
+  }
+
+  function apply(state) {
+    if (state.accent)  { root.style.setProperty('--hr-accent',  state.accent); }
+    if (state.primary) { root.style.setProperty('--hr-primary', state.primary); }
+    if (state.density) { root.setAttribute('data-density', state.density); }
+  }
+
+  const raw = readCookie('hr_tweaks');
+  if (raw) { try { apply(JSON.parse(raw)); } catch (e) {} }
+
+  function save(patch) {
+    const cur = JSON.parse(readCookie('hr_tweaks') || '{}');
+    const next = Object.assign(cur, patch);
+    writeCookie('hr_tweaks', JSON.stringify(next));
+    apply(next);
+  }
+
+  panel.querySelectorAll('[data-accent]').forEach(el => {
+    el.addEventListener('click', () => save({ accent: el.dataset.accent }));
+  });
+  panel.querySelectorAll('[data-primary]').forEach(el => {
+    el.addEventListener('click', () => save({ primary: el.dataset.primary }));
+  });
+  panel.querySelectorAll('[data-density]').forEach(el => {
+    el.addEventListener('click', () => save({ density: el.dataset.density }));
+  });
+
+  document.getElementById('tweaksReset').addEventListener('click', () => {
+    document.cookie = 'hr_tweaks=;path=/;max-age=0';
+    root.style.removeProperty('--hr-accent');
+    root.style.removeProperty('--hr-primary');
+    root.setAttribute('data-density', 'comfortable');
+  });
+})();
+</script>

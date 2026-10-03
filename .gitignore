@@ -1,0 +1,60 @@
+## .NET / C#
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.userprefs
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+*.nuget.props
+*.nuget.targets
+
+## Visual Studio
+.vs/
+*.rsuser
+*.sln.docstates
+
+## JetBrains Rider
+.idea/
+*.sln.iml
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+## Publish profiles
+**/Properties/PublishProfiles/
+
+
+## Environment files
+.env
+*.env.local
+appsettings.Development.json
+
+## Node / Tailwind build
+node_modules/
+wwwroot/css/app.min.css.map
+
+## Local secrets & private material (never publish)
+appsettings.Local.json
+ForEmployees/
+Claude outputs/

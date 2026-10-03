@@ -1,0 +1,40 @@
+@model Project_HR_1.Models.ViewModels.Management.TicketDetailVM
+@using Project_HR_1.Models.Hr.Support
+@{ ViewData["Title"] = Model.Ticket.TicketCode; }
+
+<a asp-action="Index" class="text-muted text-sm hover:text-ink"><i class="fa-solid fa-arrow-left me-1"></i>@L.L("رجوع", "Back")</a>
+
+<h1 class="text-2xl font-bold text-ink mt-2 mb-2">@Model.Ticket.Subject</h1>
+<div class="text-sm text-muted mb-4">@Model.Ticket.TicketCode · @Model.Ticket.CreatedAt.ToString("yyyy-MM-dd HH:mm")</div>
+
+<div class="card p-6 mb-4 whitespace-pre-wrap">@Model.Ticket.Description</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="card p-4">
+        <div class="text-xs text-muted uppercase mb-2">Status / Priority</div>
+        <div class="mb-2"><strong>@Model.Ticket.Status</strong> · @Model.Ticket.Priority</div>
+        @if (Model.CanManage)
+        {
+            <form asp-action="ChangeStatus" asp-route-id="@Model.Ticket.Id" method="post" class="flex gap-2">
+                <select name="status" class="auth-input">
+                    @foreach (var s in Enum.GetValues<TicketStatus>())
+                    {
+                        <option value="@s">@s</option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-primary">Set</button>
+            </form>
+        }
+    </div>
+    <div class="card p-4">
+        <div class="text-xs text-muted uppercase mb-2">Assigned to</div>
+        <div class="mb-2">@(Model.Ticket.AssignedToUser?.UserName ?? "(unassigned)")</div>
+        @if (Model.CanManage)
+        {
+            <form asp-action="Assign" asp-route-id="@Model.Ticket.Id" method="post" class="flex gap-2">
+                <input type="text" name="userId" placeholder="UserId" class="auth-input" value="@Model.Ticket.AssignedToUserId" />
+                <button type="submit" class="btn btn-primary">Set</button>
+            </form>
+        }
+    </div>
+</div>

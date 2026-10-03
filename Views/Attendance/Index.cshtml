@@ -1,0 +1,150 @@
+@model Project_HR_1.Models.ViewModels.Modules.AttendanceDayVM
+@using Project_HR_1.Models.Hr.Modules
+@{
+    ViewData["Title"] = L.L("التحضير", "Attendance");
+    var dayName = System.Globalization.CultureInfo.GetCultureInfo(L.L("ar-SA", "en-US")).DateTimeFormat.GetDayName(Model.Date.DayOfWeek);
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("التحضير اليومي", "Daily Attendance")</h2>
+        <div class="sub">@dayName — <span class="hm-num">@Model.Date.ToString("yyyy/MM/dd")</span>
+            @if (Model.IsWeekend) { <span class="badge badge-muted">@L.L("عطلة نهاية الأسبوع", "Weekend")</span> }
+        </div>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost btn-sm" asp-action="Monthly" asp-route-year="@Model.Date.Year" asp-route-month="@Model.Date.Month" asp-route-branchId="@Model.BranchId">
+            <i class="fa-solid fa-calendar-days me-1"></i>@L.L("الملخص الشهري", "Monthly summary")
+        </a>
+    </div>
+</div>
+
+<partial name="_ModuleFlash" />
+
+<div class="stats-grid">
+    <div class="stat-card" style="--stat-color:#16a34a"><div class="stat-icon"><i class="fa-solid fa-user-check"></i></div><div class="stat-info"><h3>@(Model.Count(AttendanceStatuses.Present) + Model.Count(AttendanceStatuses.Remote))</h3><p>@L.L("حاضر", "Present")</p></div></div>
+    <div class="stat-card" style="--stat-color:#f59e0b"><div class="stat-icon"><i class="fa-solid fa-clock"></i></div><div class="stat-info"><h3>@Model.Count(AttendanceStatuses.Late)</h3><p>@L.L("متأخر", "Late")</p></div></div>
+    <div class="stat-card" style="--stat-color:#dc2626"><div class="stat-icon"><i class="fa-solid fa-user-xmark"></i></div><div class="stat-info"><h3>@Model.Count(AttendanceStatuses.Absent)</h3><p>@L.L("غائب", "Absent")</p></div></div>
+    <div class="stat-card" style="--stat-color:#3b82f6"><div class="stat-icon"><i class="fa-solid fa-list-check"></i></div><div class="stat-info"><h3>@Model.RecordedCount / @Model.Rows.Count</h3><p>@L.L("تم تسجيلهم", "Recorded")</p></div></div>
+</div>
+
+<div class="data-card">
+    <form method="get" class="filter-bar">
+        <a class="icon-btn" title="@L.L("اليوم السابق", "Previous day")" asp-action="Index" asp-route-date="@Model.Date.AddDays(-1).ToString("yyyy-MM-dd")" asp-route-branchId="@Model.BranchId"><i class="fa-solid @(L.L("fa-chevron-right","fa-chevron-left"))"></i></a>
+        <input type="date" name="date" class="select-box" value="@Model.Date.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+        <a class="icon-btn" title="@L.L("اليوم التالي", "Next day")" asp-action="Index" asp-route-date="@Model.Date.AddDays(1).ToString("yyyy-MM-dd")" asp-route-branchId="@Model.BranchId"><i class="fa-solid @(L.L("fa-chevron-left","fa-chevron-right"))"></i></a>
+        <select name="branchId" class="select-box" onchange="this.form.submit()">
+            <option value="">@L.L("كل الفروع", "All branches")</option>
+            @foreach (var b in Model.Branches)
+            {
+                <option value="@b.Id" selected="@(Model.BranchId == b.Id ? "selected" : null)">@L.L(b.NameAr, b.NameEn)</option>
+            }
+        </select>
+        <input type="search" name="q" value="@Model.Search" class="select-box" placeholder="@L.L("بحث بالاسم أو الرقم", "Search name or code")" />
+        <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+    </form>
+
+    <form method="post" asp-action="SaveDay" id="att-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="date" value="@Model.Date.ToString("yyyy-MM-dd")" />
+        <input type="hidden" name="branchId" value="@Model.BranchId" />
+
+        @if (Model.CanEdit && Model.Rows.Count > 0)
+        {
+            <div class="filter-bar">
+                <span class="hm-small hm-muted">@L.L("بداية الدوام 08:00 — يُحتسب التأخير بعد 15 دقيقة سماح", "Shift starts 08:00 — late after a 15-minute grace")</span>
+                <span class="hm-spacer"></span>
+                <button type="button" class="btn btn-ghost btn-sm" data-fill="present"><i class="fa-solid fa-check-double me-1"></i>@L.L("تحضير الكل", "Mark all present")</button>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk me-1"></i>@L.L("حفظ التحضير", "Save attendance")</button>
+            </div>
+        }
+
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@L.L("الموظف", "Employee")</th>
+                        <th>@L.L("الفرع", "Branch")</th>
+                        <th>@L.L("الحالة", "Status")</th>
+                        <th>@L.L("الحضور", "Check-in")</th>
+                        <th>@L.L("الانصراف", "Check-out")</th>
+                        <th>@L.L("ساعات", "Hours")</th>
+                        <th>@L.L("ملاحظات", "Notes")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr class="empty"><td colspan="7">@L.L("لا يوجد موظفون في هذا النطاق", "No employees in this scope.")</td></tr>
+                }
+                @for (var i = 0; i < Model.Rows.Count; i++)
+                {
+                    var r = Model.Rows[i];
+                    var rec = r.Record;
+                    var status = rec?.Status ?? r.SuggestedStatus;
+                    var worked = AttendanceStatuses.CountsAsWorked(status);
+                    var cin = rec?.CheckIn?.ToString("HH:mm") ?? (rec == null && worked ? "08:00" : "");
+                    var cout = rec?.CheckOut?.ToString("HH:mm") ?? (rec == null && worked ? "16:00" : "");
+                    <tr class="hm-status-row" data-status="@status">
+                        <td>
+                            <input type="hidden" name="entries[@i].EmployeeId" value="@r.Employee.Id" />
+                            <div class="font-semibold">@L.L(r.Employee.NameAr, r.Employee.NameEn)</div>
+                            <div class="hm-small hm-muted hm-num">@r.Employee.EmployeeCode</div>
+                        </td>
+                        <td class="hm-muted hm-small">@(r.Employee.Branch != null ? L.L(r.Employee.Branch.NameAr, r.Employee.Branch.NameEn) : "—")</td>
+                        <td>
+                            @if (Model.CanEdit)
+                            {
+                                <select name="entries[@i].Status" class="hm-cell-input" data-status-select>
+                                    @foreach (var s in AttendanceStatuses.All)
+                                    {
+                                        <option value="@s.Code" selected="@(s.Code == status ? "selected" : null)">@L.L(s.Ar, s.En)</option>
+                                    }
+                                </select>
+                                @if (rec == null) { <div class="hm-small hm-muted mt-1">@L.L("لم يُسجّل بعد", "Not saved yet")</div> }
+                                else if (rec.LateMinutes > 0) { <div class="hm-small" style="color:#b45309">@L.L($"تأخير {rec.LateMinutes} د", $"{rec.LateMinutes} min late")</div> }
+                            }
+                            else
+                            {
+                                var s = AttendanceStatuses.Get(status);
+                                <span class="badge badge-@s.Badge">@L.L(s.Ar, s.En)</span>
+                            }
+                        </td>
+                        <td>@if (Model.CanEdit) { <input type="time" name="entries[@i].CheckIn" value="@cin" class="hm-cell-input hm-time" /> } else { <span class="hm-num">@(rec?.CheckIn?.ToString("HH:mm") ?? "—")</span> }</td>
+                        <td>@if (Model.CanEdit) { <input type="time" name="entries[@i].CheckOut" value="@cout" class="hm-cell-input hm-time" /> } else { <span class="hm-num">@(rec?.CheckOut?.ToString("HH:mm") ?? "—")</span> }</td>
+                        <td class="hm-num">@(rec?.WorkedHours?.ToString("0.#") ?? "—")</td>
+                        <td>@if (Model.CanEdit) { <input type="text" name="entries[@i].Notes" value="@rec?.Notes" maxlength="300" class="hm-cell-input" /> } else { @(rec?.Notes ?? "") }</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.CanEdit && Model.Rows.Count > 10)
+        {
+            <div class="filter-bar"><span class="hm-spacer"></span><button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk me-1"></i>@L.L("حفظ التحضير", "Save attendance")</button></div>
+        }
+    </form>
+</div>
+
+@section Scripts {
+<script>
+(() => {
+    const form = document.getElementById('att-form');
+    if (!form) return;
+    form.addEventListener('change', e => {
+        const sel = e.target.closest('[data-status-select]');
+        if (sel) sel.closest('tr').dataset.status = sel.value;
+    });
+    form.querySelector('[data-fill]')?.addEventListener('click', () => {
+        form.querySelectorAll('tr[data-status]').forEach(tr => {
+            const sel = tr.querySelector('[data-status-select]');
+            if (!sel || sel.value === 'leave' || sel.value === 'holiday') return;
+            sel.value = 'present'; tr.dataset.status = 'present';
+            const t = tr.querySelectorAll('input[type=time]');
+            if (t[0] && !t[0].value) t[0].value = '08:00';
+            if (t[1] && !t[1].value) t[1].value = '16:00';
+        });
+    });
+})();
+</script>
+}

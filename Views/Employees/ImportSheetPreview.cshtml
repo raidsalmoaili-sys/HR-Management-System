@@ -1,0 +1,196 @@
+@model Project_HR_1.Services.Import.SheetImportReport
+@using Project_HR_1.Services.Import
+@{
+    // Used for both steps: the dry-run preview (Committed = false) and the final result (Committed = true).
+    var errors = Model.Issues.Where(i => i.Level == "error").ToList();
+    var warnings = Model.Issues.Where(i => i.Level == "warning").ToList();
+    var dups = Model.Issues.Where(i => i.Level == "duplicate").ToList();
+    var warnGroups = warnings.GroupBy(w => w.Category).OrderByDescending(g => g.Count()).ToList();
+    var willWrite = Model.ToCreate + Model.ToUpdate;
+}
+
+<div class="page-head">
+    <div>
+        <h2>@(Model.Committed ? L.L("نتيجة استيراد كشف الموظفين", "Sheet import result") : L.L("مراجعة قبل الاستيراد", "Review before import"))</h2>
+        <div class="sub">@Model.FileName @(string.IsNullOrEmpty(Model.SheetName) ? "" : "· " + L.L("الورقة: ", "Sheet: ") + Model.SheetName)</div>
+    </div>
+    <div class="page-head-actions">
+        <a asp-action="BulkImport" class="btn btn-ghost btn-sm"><i class="fa-solid fa-arrow-right me-1"></i>@L.L("رجوع", "Back")</a>
+        @if (Model.Committed)
+        {
+            <a asp-action="Index" class="btn btn-primary btn-sm"><i class="fa-solid fa-id-card me-1"></i>@L.L("قائمة الموظفين", "Employees")</a>
+        }
+    </div>
+</div>
+
+@if (Model.FatalError != null)
+{
+    <div class="auth-error mb-4"><i class="fa-solid fa-circle-exclamation me-1"></i> @Model.FatalError</div>
+    return;
+}
+
+@if (Model.Committed)
+{
+    <div class="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-5 py-4 mb-6">
+        <i class="fa-solid fa-circle-check text-green-600 text-2xl"></i>
+        <div class="text-green-800">
+            <div class="font-semibold">@L.L("تم الاستيراد بنجاح", "Import completed")</div>
+            <div class="text-sm">@L.L($"أُضيف {Model.ToCreate} موظف وحُدّث {Model.ToUpdate}.", $"Added {Model.ToCreate}, updated {Model.ToUpdate}.")</div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="flex items-center gap-3 rounded-xl bg-blue-50 border border-blue-200 px-5 py-4 mb-6 text-blue-900 text-sm">
+        <i class="fa-solid fa-circle-info text-xl"></i>
+        <div>@L.L("هذه معاينة فقط — لم يُحفظ أي شيء بعد. راجع الأرقام والملاحظات ثم اضغط «تأكيد الاستيراد» أسفل الصفحة.",
+                  "This is a preview only — nothing has been saved yet. Review, then press «Confirm import» at the bottom.")</div>
+    </div>
+}
+
+<div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+    <div class="stat-card" style="--rail:var(--hr-primary)"><div class="stat-label">@L.L("صفوف الملف", "Rows")</div><div class="stat-value">@Model.TotalRows</div></div>
+    <div class="stat-card" style="--rail:#16a34a"><div class="stat-label">@L.L(Model.Committed ? "أُضيفوا" : "سيُضافون", "New")</div><div class="stat-value text-green-700">@Model.ToCreate</div></div>
+    <div class="stat-card" style="--rail:#2563eb"><div class="stat-label">@L.L(Model.Committed ? "حُدّثوا" : "سيُحدَّثون", "Updated")</div><div class="stat-value">@Model.ToUpdate</div></div>
+    <div class="stat-card" style="--rail:#64748b"><div class="stat-label">@L.L("موجودون مسبقاً (تُخطّوا)", "Existing (skipped)")</div><div class="stat-value">@Model.SkippedExisting</div></div>
+    <div class="stat-card" style="--rail:#dc2626"><div class="stat-label">@L.L("صفوف مرفوضة", "Rejected rows")</div><div class="stat-value @(Model.ErrorRows > 0 ? "text-red-600" : "")">@Model.ErrorRows</div></div>
+    <div class="stat-card" style="--rail:#0d9488"><div class="stat-label">@L.L("سعودي / غير سعودي", "Saudi / Non-Saudi")</div><div class="stat-value">@Model.SaudiCount / @Model.ForeignCount</div></div>
+</div>
+
+@if (Model.NewCompanies.Count + Model.NewBranches.Count + Model.NewSponsors.Count > 0)
+{
+    <div class="data-card mb-6">
+        <div class="card-head">
+            <div class="card-title"><i class="fa-solid fa-sitemap"></i>@L.L(Model.Committed ? "سجلات أُنشئت تلقائياً" : "سجلات ستُنشأ تلقائياً", "Auto-created records")</div>
+            <span class="text-xs text-muted">@Model.NewCompanies.Count @L.L("شركة", "companies") · @Model.NewBranches.Count @L.L("فرع", "branches") · @Model.NewSponsors.Count @L.L("كفيل", "sponsors")</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 text-sm">
+            <div><div class="font-semibold mb-1">@L.L("الشركات", "Companies")</div><ul class="list-disc ps-5">@foreach (var c in Model.NewCompanies) { <li>@c</li> }</ul></div>
+            <div><div class="font-semibold mb-1">@L.L("الفروع", "Branches")</div><ul class="list-disc ps-5 max-h-64 overflow-auto">@foreach (var b in Model.NewBranches) { <li>@b</li> }</ul></div>
+            <div><div class="font-semibold mb-1">@L.L("الكفلاء", "Sponsors")</div><ul class="list-disc ps-5 max-h-64 overflow-auto">@foreach (var sp in Model.NewSponsors) { <li>@sp</li> }</ul></div>
+        </div>
+    </div>
+}
+
+@if (Model.Fixes.Count > 0)
+{
+    <div class="data-card mb-6">
+        <div class="card-head">
+            <div class="card-title"><i class="fa-solid fa-wand-magic-sparkles"></i>@L.L("تصحيحات تلقائية", "Automatic corrections")</div>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>@L.L("التصحيح", "Correction")</th><th class="text-center">@L.L("العدد", "Count")</th><th>@L.L("أمثلة", "Examples")</th></tr></thead>
+                <tbody>
+                @foreach (var f in Model.Fixes.OrderByDescending(f => f.Value))
+                {
+                    <tr>
+                        <td>@f.Key</td>
+                        <td class="text-center">@f.Value</td>
+                        <td class="text-muted text-xs">@string.Join("  ·  ", Model.FixExamples.GetValueOrDefault(f.Key) ?? new List<string>())</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (Model.Issues.Count > 0)
+{
+    <div class="flex items-center justify-between mb-3">
+        <div class="text-sm text-muted">@L.L("تقدر تنزل كل الملاحظات في ملف Excel وتصحح البيانات منه.", "Download every note as Excel to fix the source data.")</div>
+        <a asp-action="ImportSheetIssues" asp-route-token="@Model.Token" class="btn btn-ghost btn-sm"><i class="fa-solid fa-file-excel me-1"></i>@L.L("تنزيل الملاحظات (Excel)", "Download notes (Excel)")</a>
+    </div>
+}
+
+@if (errors.Count > 0)
+{
+    <div class="data-card mb-6">
+        <div class="card-head">
+            <div class="card-title text-red-600"><i class="fa-solid fa-circle-xmark"></i>@L.L("صفوف مرفوضة (لن تُستورد)", "Rejected rows")</div>
+            <span class="text-xs text-muted">@errors.Count</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>@L.L("الصف", "Row")</th><th>@L.L("رقم الموظف", "Code")</th><th>@L.L("الاسم", "Name")</th><th>@L.L("السبب", "Reason")</th></tr></thead>
+                <tbody>
+                @foreach (var e in errors)
+                {
+                    <tr><td>@e.Row</td><td>@e.Code</td><td>@e.Name</td><td class="text-red-700">@e.Message</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (dups.Count > 0)
+{
+    <div class="data-card mb-6">
+        <div class="card-head">
+            <div class="card-title" style="color:#7c3aed"><i class="fa-solid fa-clone"></i>@L.L("موظفون مكررون (دُمجوا واعتُمد الأكمل)", "Duplicates merged")</div>
+            <span class="text-xs text-muted">@dups.Count</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>@L.L("الصف المحذوف", "Dropped row")</th><th>@L.L("رقم الموظف", "Code")</th><th>@L.L("الاسم", "Name")</th><th>@L.L("التفاصيل", "Details")</th></tr></thead>
+                <tbody>
+                @foreach (var d in dups)
+                {
+                    <tr><td>@d.Row</td><td>@d.Code</td><td>@d.Name</td><td>@d.Message</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (warnings.Count > 0)
+{
+    <div class="data-card mb-6">
+        <div class="card-head">
+            <div class="card-title" style="color:#b45309"><i class="fa-solid fa-triangle-exclamation"></i>@L.L("تنبيهات (تُستورد لكن تحتاج مراجعة)", "Warnings (imported, need review)")</div>
+            <span class="text-xs text-muted">@warnings.Count</span>
+        </div>
+        @foreach (var g in warnGroups)
+        {
+            <details class="border-t px-4 py-2">
+                <summary class="cursor-pointer text-sm"><strong>@g.Count()</strong> — @g.Key</summary>
+                <div class="table-wrap mt-2">
+                    <table class="data-table">
+                        <thead><tr><th>@L.L("الصف", "Row")</th><th>@L.L("رقم الموظف", "Code")</th><th>@L.L("الاسم", "Name")</th><th>@L.L("الملاحظة", "Note")</th></tr></thead>
+                        <tbody>
+                        @foreach (var w in g)
+                        {
+                            <tr><td>@w.Row</td><td>@w.Code</td><td>@w.Name</td><td>@w.Message</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        }
+    </div>
+}
+
+@if (!Model.Committed)
+{
+    <div class="data-card p-4 flex flex-wrap items-center gap-3">
+        @if (willWrite > 0)
+        {
+            <form method="post" asp-action="ImportSheetCommit">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="token" value="@Model.Token" />
+                <input type="hidden" name="mode" value="@Model.Mode" />
+                <button type="submit" class="btn btn-primary" onclick="this.disabled=true; this.form.submit();">
+                    <i class="fa-solid fa-check me-1"></i>@L.L($"تأكيد الاستيراد ({willWrite} موظف)", $"Confirm import ({willWrite} employees)")
+                </button>
+            </form>
+            <span class="text-xs text-muted">@L.L("الحفظ يتم دفعة واحدة: إما ينحفظ الكل أو لا شيء.", "Saved in one transaction: all or nothing.")</span>
+        }
+        else
+        {
+            <span class="text-sm text-muted">@L.L("لا يوجد موظفون جدد أو تحديثات لاستيرادها.", "Nothing to import.")</span>
+        }
+    </div>
+}

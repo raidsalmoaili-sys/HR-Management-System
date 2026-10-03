@@ -1,0 +1,32 @@
+@model Project_HR_1.Models.ViewModels.Management.JobTitleEditVM
+<input type="hidden" asp-for="Id" />
+<div asp-validation-summary="ModelOnly" class="auth-error"></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="md:col-span-2">
+        <label asp-for="CompanyId" class="auth-label">@L.L("الشركة", "Company")</label>
+        <select asp-for="CompanyId" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var c in Model.Companies)
+            {
+                <option value="@c.Id">@L.L(c.NameAr, c.NameEn)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="Code" class="auth-label">@L.L("الرمز", "Code")</label>
+        <input asp-for="Code" class="auth-input" />
+    </div>
+    <div></div>
+    <div>
+        <label asp-for="NameAr" class="auth-label">@L.L("المسمى (عربي)", "Title (AR)")</label>
+        <input asp-for="NameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NameEn" class="auth-label">@L.L("المسمى (إنجليزي)", "Title (EN)")</label>
+        <input asp-for="NameEn" class="auth-input" />
+    </div>
+    <div class="md:col-span-2 flex items-center gap-2">
+        <input asp-for="IsActive" type="checkbox" class="h-4 w-4" />
+        <label asp-for="IsActive" class="text-sm">@L.L("نشط", "Active")</label>
+    </div>
+</div>

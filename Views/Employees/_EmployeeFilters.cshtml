@@ -1,0 +1,124 @@
+@* Search + filters bar for Employees/Index (docs/features/employee-list-filters.md).
+   Plain GET form — the URL keeps the filters, so a filtered list can be refreshed/bookmarked. *@
+@model Project_HR_1.Models.ViewModels.Management.EmployeesListVM
+@using Project_HR_1.Models.Hr
+@{
+    var f = Model.Filter;
+    var allCount = Model.StatusCounts.Values.Sum();
+    string? Sel(bool on) => on ? "selected" : null;
+}
+
+<form method="get" asp-action="Index" id="elf-form" class="elf" autocomplete="off">
+    <input type="hidden" name="status" id="elf-status" value="@f.Status" />
+
+    <div class="elf-row">
+        <label class="elf-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="search" name="q" id="elf-q" value="@f.Q"
+                   placeholder="@L.L("ابحث بالاسم أو الرقم الوظيفي أو الهوية/الإقامة أو الجوال…", "Search name, code, ID/Iqama, mobile…")" />
+        </label>
+
+        <select name="companyId" id="elf-company" class="elf-select" aria-label="@L.L("الشركة", "Company")">
+            <option value="">@L.L("كل الشركات", "All companies")</option>
+            @foreach (var c in Model.FilterCompanies)
+            {
+                <option value="@c.Id" selected="@Sel(f.CompanyId == c.Id)">@L.L(c.NameAr, c.NameEn)</option>
+            }
+        </select>
+
+        <select name="branchId" id="elf-branch" class="elf-select" aria-label="@L.L("الفرع", "Branch")">
+            <option value="">@L.L("كل الفروع", "All branches")</option>
+            @foreach (var b in Model.FilterBranches)
+            {
+                <option value="@b.Id" data-company="@b.CompanyId" selected="@Sel(f.BranchId == b.Id)">@L.L(b.NameAr, b.NameEn ?? b.NameAr)</option>
+            }
+        </select>
+
+        <select name="nationality" id="elf-nat" class="elf-select" aria-label="@L.L("الجنسية", "Nationality")">
+            <option value="">@L.L("كل الجنسيات", "All nationalities")</option>
+            <option value="SA" selected="@Sel(f.Nationality == "SA")">@L.L("سعودي", "Saudi")</option>
+            <option value="NON_SA" selected="@Sel(f.Nationality == "NON_SA")">@L.L("غير سعودي", "Non-Saudi")</option>
+        </select>
+
+        @if (f.Any)
+        {
+            <a asp-action="Index" class="elf-clear"><i class="fa-solid fa-xmark"></i>@L.L("مسح الفلاتر", "Clear filters")</a>
+        }
+    </div>
+
+    <div class="elf-chips">
+        <button type="button" class="elf-chip @(string.IsNullOrEmpty(f.Status) ? "on" : "")" data-status="">
+            @L.L("الكل", "All") <b>@allCount</b>
+        </button>
+        @foreach (var s in EmployeeStatuses.All)
+        {
+            var n = Model.StatusCounts.TryGetValue(s.Code, out var c) ? c : 0;
+            <button type="button" class="elf-chip st-@s.Badge @(f.Status == s.Code ? "on" : "")" data-status="@s.Code">
+                <i class="fa-solid @s.Icon"></i>@L.L(s.NameAr, s.NameEn) <b>@n</b>
+            </button>
+        }
+    </div>
+</form>
+
+<style>
+    .elf { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 14px 16px; margin-bottom: 14px; display: grid; gap: 12px; }
+    .elf-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .elf-search { position: relative; flex: 1 1 280px; min-width: 0; }
+    .elf-search i { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); color: #7f8c9a; font-size: .85rem; }
+    .elf-search input, .elf-select { height: 40px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; font: inherit; font-size: .88rem; color: #1a2744; outline: none; }
+    .elf-search input { width: 100%; padding-inline: 36px 12px; }
+    .elf-select { padding-inline: 10px; min-width: 150px; max-width: 240px; flex: 0 1 auto; }
+    .elf-search input:focus, .elf-select:focus { border-color: var(--hr-primary); box-shadow: 0 0 0 3px rgba(26, 39, 68, .12); }
+    .elf-clear { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 700; color: #be123c; text-decoration: none; padding: 6px 10px; border-radius: 8px; }
+    .elf-clear:hover { background: #fff1f2; }
+    .elf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .elf-chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #e2e8f0; background: #f8fafc; color: #475569; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
+    .elf-chip b { background: #fff; border-radius: 999px; padding: 0 7px; font-size: .72rem; color: #1a2744; font-variant-numeric: tabular-nums; }
+    .elf-chip.st-success i { color: #047857; } .elf-chip.st-warning i { color: #b45309; }
+    .elf-chip.st-muted i { color: #475569; }   .elf-chip.st-danger i { color: #be123c; }
+    .elf-chip:hover { border-color: #94a3b8; }
+    .elf-chip.on { background: var(--hr-primary); border-color: var(--hr-primary); color: #fff; }
+    .elf-chip.on i { color: #fff !important; }
+    mark.hl-q { background: #f3e3ad; color: #0b1530; font-weight: 800; padding: 0 2px; border-radius: 4px; }
+    @@media (max-width: 640px) { .elf-select { flex: 1 1 100%; max-width: none; } }
+</style>
+
+<script>
+(function () {
+    const form = document.getElementById('elf-form');
+    const company = document.getElementById('elf-company');
+    const branch = document.getElementById('elf-branch');
+    const q = document.getElementById('elf-q');
+
+    // Branch list follows the chosen company.
+    function syncBranches() {
+        const cid = company.value;
+        Array.from(branch.options).forEach(o => {
+            if (!o.value) return;
+            const show = !cid || o.dataset.company === cid;
+            o.hidden = !show;
+            if (!show && o.selected) branch.value = '';
+        });
+    }
+    syncBranches();
+
+    // Drop empty params so the URL stays clean.
+    function submit() {
+        Array.from(form.elements).forEach(el => { if (el.name) el.disabled = !el.value; });
+        form.submit();
+    }
+    company.addEventListener('change', () => { syncBranches(); submit(); });
+    branch.addEventListener('change', submit);
+    document.getElementById('elf-nat').addEventListener('change', submit);
+    form.addEventListener('submit', e => { e.preventDefault(); submit(); });
+    document.querySelectorAll('.elf-chip').forEach(c => c.addEventListener('click', () => {
+        document.getElementById('elf-status').value = c.dataset.status; submit();
+    }));
+
+    // Search: submit after the user stops typing (or on Enter).
+    let t;
+    q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(submit, 600); });
+    // Keep the cursor in the search box after reload.
+    if (q.value) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+})();
+</script>

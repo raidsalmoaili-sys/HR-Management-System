@@ -1,0 +1,199 @@
+@model Project_HR_1.Models.ViewModels.Modules.HrDashboardVM
+@using Project_HR_1.Models.Hr.Modules
+@using Project_HR_1.Services.HrModules
+@{
+    ViewData["Title"] = L.L("لوحة التحكم", "Dashboard");
+    decimal Max(IEnumerable<Project_HR_1.Models.ViewModels.Modules.LabelValue> xs) => Math.Max(1, xs.Select(x => x.Value).DefaultIfEmpty(0).Max());
+    var palette = new[] { "#1a2744", "#c8a84b", "#16a085", "#3b82f6", "#8b5cf6", "#ef4444", "#f59e0b", "#64748b" };
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("لوحة التحكم", "Dashboard")</h2>
+        <div class="sub">@L.L("نظرة شاملة على القوى العاملة والحضور والرواتب والتنبيهات في النطاق الحالي", "Workforce, attendance, payroll and alerts for the current scope")</div>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost btn-sm" asp-controller="Attendance" asp-action="Index"><i class="fa-solid fa-fingerprint me-1"></i>@L.L("تحضير اليوم", "Today's attendance")</a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card" style="--stat-color:#1a2744"><div class="stat-icon"><i class="fa-solid fa-users"></i></div><div class="stat-info"><h3>@(Model.ActiveEmployees + Model.OnLeaveNow)</h3><p>@L.L("موظف على رأس العمل", "Employees on payroll")</p><span class="stat-change up"><i class="fa-solid fa-arrow-trend-up"></i>@L.L($"{Model.NewHiresThisYear} تعيين هذا العام", $"{Model.NewHiresThisYear} hires this year")</span></div></div>
+    <div class="stat-card" style="--stat-color:#16a34a"><div class="stat-icon"><i class="fa-solid fa-flag"></i></div><div class="stat-info"><h3>@Model.SaudizationRate.ToString("0.#")%</h3><p>@L.L($"نسبة السعودة ({Model.SaudiCount} سعودي)", $"Saudization ({Model.SaudiCount} Saudis)")</p></div></div>
+    <div class="stat-card" style="--stat-color:#16a085"><div class="stat-icon"><i class="fa-solid fa-user-check"></i></div><div class="stat-info"><h3>@(Model.AttendanceRateToday.HasValue ? Model.AttendanceRateToday.Value.ToString("0.#") + "%" : "—")</h3><p>@L.L("نسبة الحضور اليوم", "Attendance today")</p><span class="stat-change @(Model.AbsentToday > 0 ? "down" : "up")">@L.L($"{Model.PresentToday} حاضر · {Model.LateToday} متأخر · {Model.AbsentToday} غائب", $"{Model.PresentToday} in · {Model.LateToday} late · {Model.AbsentToday} absent")</span></div></div>
+    <div class="stat-card" style="--stat-color:#c8a84b"><div class="stat-icon"><i class="fa-solid fa-money-bill-wave"></i></div><div class="stat-info"><h3 class="hm-num">@HrCalendar.Money0(Model.MonthlySalaryCost)</h3><p>@L.L("تكلفة الرواتب الشهرية (ر.س)", "Monthly payroll cost (SAR)")</p></div></div>
+</div>
+
+<div class="stats-grid">
+    <a class="stat-card" style="--stat-color:#f59e0b" asp-controller="Leaves" asp-action="Index" asp-route-status="pending"><div class="stat-icon"><i class="fa-solid fa-umbrella-beach"></i></div><div class="stat-info"><h3>@Model.PendingLeaves</h3><p>@L.L("طلبات إجازة معلقة", "Pending leave requests")</p><span class="stat-change">@L.L($"{Model.OnLeaveNow} في إجازة الآن", $"{Model.OnLeaveNow} on leave now")</span></div></a>
+    <a class="stat-card" style="--stat-color:#3b82f6" asp-controller="Advances" asp-action="Index"><div class="stat-icon"><i class="fa-solid fa-piggy-bank"></i></div><div class="stat-info"><h3 class="hm-num">@HrCalendar.Money0(Model.AdvancesOutstanding)</h3><p>@L.L("سلف قائمة (ر.س)", "Outstanding advances (SAR)")</p><span class="stat-change">@L.L($"{Model.PendingAdvances} طلب معلق", $"{Model.PendingAdvances} pending")</span></div></a>
+    <a class="stat-card" style="--stat-color:#ef4444" asp-controller="Contracts" asp-action="Index" asp-route-expiring="true"><div class="stat-icon"><i class="fa-solid fa-file-contract"></i></div><div class="stat-info"><h3>@Model.ContractsExpiring60</h3><p>@L.L("عقود تنتهي خلال 60 يوماً", "Contracts expiring ≤ 60 days")</p></div></a>
+    <div class="stat-card" style="--stat-color:#8b5cf6"><div class="stat-icon"><i class="fa-solid fa-id-card"></i></div><div class="stat-info"><h3>@Model.DocsExpiring60</h3><p>@L.L("وثائق تنتهي خلال 60 يوماً", "Documents expiring ≤ 60 days")</p></div></div>
+</div>
+
+<div class="hm-grid cols-3">
+    <div class="data-card hm-span-2">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-chart-column"></i>@L.L("نسبة الحضور — آخر 7 أيام", "Attendance rate — last 7 days")</div></div>
+        <div class="hm-pad">
+            <div class="hm-cols">
+                @foreach (var d in Model.Attendance7Days)
+                {
+                    <div class="hm-col">
+                        <span class="hm-col-val">@(d.Value > 0 ? d.Value.ToString("0") + "%" : "")</span>
+                        <div class="hm-col-bar" style="height:@(Math.Max(2, (int)d.Value))%;--bar:@(d.Color ?? "#16a085")"></div>
+                        <span class="hm-col-lbl hm-num">@d.LabelAr</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="data-card">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-flag"></i>@L.L("السعودة", "Saudization")</div></div>
+        <div class="hm-pad hm-row" style="gap:1rem">
+            <div class="hm-donut" style="--p:@Model.SaudizationRate.ToString(System.Globalization.CultureInfo.InvariantCulture)"><div><span><b>@Model.SaudizationRate.ToString("0")%</b><small>@L.L("سعوديون", "Saudi")</small></span></div></div>
+            <div class="hm-bars" style="flex:1">
+                @{ var maxN = Max(Model.ByNationality); var ci = 0; }
+                @foreach (var n in Model.ByNationality)
+                {
+                    <div class="hm-bar-row" style="grid-template-columns:4.5rem 1fr auto">
+                        <span class="hm-small">@L.L(n.LabelAr, n.LabelEn)</span>
+                        <div class="hm-bar-track"><div class="hm-bar-fill" style="width:@((int)(n.Value * 100 / maxN))%;--bar:@(n.Color ?? palette[++ci % palette.Length])"></div></div>
+                        <span class="hm-small hm-strong">@n.Value</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="data-card">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-building"></i>@L.L("الموظفون حسب الشركة", "Employees by company")</div></div>
+        <div class="hm-pad hm-bars">
+            @{ var maxC = Max(Model.ByCompany); var k = 0; }
+            @foreach (var c in Model.ByCompany)
+            {
+                <div class="hm-bar-row">
+                    <span class="hm-small">@L.L(c.LabelAr, c.LabelEn)</span>
+                    <div class="hm-bar-track"><div class="hm-bar-fill" style="width:@((int)(c.Value * 100 / maxC))%;--bar:@palette[k++ % palette.Length]"></div></div>
+                    <span class="hm-small hm-strong">@c.Value</span>
+                </div>
+            }
+            @if (Model.ByCompany.Count == 0) { <div class="hm-muted hm-small">—</div> }
+        </div>
+    </div>
+    <div class="data-card">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-sitemap"></i>@L.L("الموظفون حسب الإدارة", "Employees by department")</div></div>
+        <div class="hm-pad hm-bars">
+            @{ var maxD = Max(Model.ByDepartment); }
+            @foreach (var d in Model.ByDepartment)
+            {
+                <div class="hm-bar-row">
+                    <span class="hm-small">@L.L(d.LabelAr, d.LabelEn)</span>
+                    <div class="hm-bar-track"><div class="hm-bar-fill" style="width:@((int)(d.Value * 100 / maxD))%;--bar:#16a085"></div></div>
+                    <span class="hm-small hm-strong">@d.Value</span>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="data-card">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-sack-dollar"></i>@L.L("صافي الرواتب — آخر 6 أشهر", "Net payroll — last 6 months")</div></div>
+        <div class="hm-pad">
+            @if (Model.PayrollTrend.Count == 0)
+            {
+                <div class="hm-muted hm-small">@L.L("لا توجد مسيرات معتمدة بعد", "No approved payroll yet")</div>
+            }
+            else
+            {
+                var maxP = Max(Model.PayrollTrend);
+                <div class="hm-cols">
+                    @foreach (var p in Model.PayrollTrend)
+                    {
+                        <div class="hm-col">
+                            <span class="hm-col-val">@((p.Value / 1000).ToString("0"))K</span>
+                            <div class="hm-col-bar" style="height:@((int)(p.Value * 100 / maxP))%"></div>
+                            <span class="hm-col-lbl">@L.L(p.LabelAr, p.LabelEn)</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="data-card hm-span-2">
+        <div class="card-head">
+            <div class="card-title"><i class="fa-solid fa-bell"></i>@L.L("تنبيهات انتهاء الوثائق والعقود", "Document & contract expiry alerts")</div>
+            <span class="text-xs text-muted">@L.L("خلال 60 يوماً", "within 60 days")</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead><tr><th>@L.L("الموظف", "Employee")</th><th>@L.L("الوثيقة", "Document")</th><th>@L.L("تاريخ الانتهاء", "Expiry")</th><th>@L.L("المتبقي", "Left")</th></tr></thead>
+                <tbody>
+                @if (Model.Expiring.Count == 0) { <tr class="empty"><td colspan="4">@L.L("لا توجد تنبيهات 🎉", "No alerts")</td></tr> }
+                @foreach (var x in Model.Expiring)
+                {
+                    <tr>
+                        <td class="font-semibold"><a asp-controller="Employees" asp-action="Detail" asp-route-id="@x.Employee.Id">@L.L(x.Employee.NameAr, x.Employee.NameEn)</a></td>
+                        <td>@L.L(x.DocAr, x.DocEn)</td>
+                        <td class="hm-num">@x.Expiry.ToString("yyyy/MM/dd")</td>
+                        <td>
+                            @if (x.DaysLeft < 0) { <span class="badge badge-danger">@L.L($"منتهية منذ {-x.DaysLeft} يوم", $"Expired {-x.DaysLeft}d ago")</span> }
+                            else if (x.DaysLeft <= 30) { <span class="badge badge-warning">@L.L($"{x.DaysLeft} يوم", $"{x.DaysLeft} days")</span> }
+                            else { <span class="badge badge-info">@L.L($"{x.DaysLeft} يوم", $"{x.DaysLeft} days")</span> }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="data-card">
+        <div class="card-head"><div class="card-title"><i class="fa-solid fa-umbrella-beach"></i>@L.L("أحدث طلبات الإجازة", "Latest leave requests")</div><a class="text-xs" asp-controller="Leaves" asp-action="Index">@L.L("عرض الكل", "View all")</a></div>
+        <ul class="hm-list">
+            @if (Model.LatestLeaves.Count == 0) { <li class="hm-muted">—</li> }
+            @foreach (var l in Model.LatestLeaves)
+            {
+                var t = LeaveTypes.Get(l.LeaveType);
+                var s = RequestStatuses.Get(l.Status);
+                <li>
+                    <span class="hm-avatar" style="background:@t.Color">@(l.Employee?.Initials ?? "?")</span>
+                    <div style="flex:1;min-width:0">
+                        <div class="font-semibold">@(l.Employee != null ? L.L(l.Employee.NameAr, l.Employee.NameEn) : "—")</div>
+                        <div class="hm-small hm-muted">@L.L(t.Ar, t.En) · @l.Days @L.L("يوم", "d") · <span class="hm-num">@l.StartDate.ToString("MM/dd")</span></div>
+                    </div>
+                    <span class="badge badge-@s.Badge">@L.L(s.Ar, s.En)</span>
+                </li>
+            }
+        </ul>
+    </div>
+
+    @if (Model.LeaveByType.Count > 0)
+    {
+        <div class="data-card hm-span-2">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-chart-bar"></i>@L.L("أيام الإجازات المعتمدة هذا العام حسب النوع", "Approved leave days this year by type")</div></div>
+            <div class="hm-pad hm-bars">
+                @{ var maxL = Max(Model.LeaveByType); }
+                @foreach (var l in Model.LeaveByType)
+                {
+                    <div class="hm-bar-row">
+                        <span class="hm-small">@L.L(l.LabelAr, l.LabelEn)</span>
+                        <div class="hm-bar-track"><div class="hm-bar-fill" style="width:@((int)(l.Value * 100 / maxL))%;--bar:@l.Color"></div></div>
+                        <span class="hm-small hm-strong">@l.Value</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    @if (Model.LastPayroll != null)
+    {
+        var lp = Model.LastPayroll;
+        var lst = PayrollStatuses.Get(lp.Status);
+        <div class="data-card">
+            <div class="card-head"><div class="card-title"><i class="fa-solid fa-receipt"></i>@L.L("آخر مسير رواتب", "Latest payroll run")</div></div>
+            <div class="hm-pad">
+                <div class="hm-row"><b>@L.L(HrCalendar.MonthNameAr(lp.Month), HrCalendar.MonthNameEn(lp.Month)) @lp.Year</b><span class="badge badge-@lst.Badge">@L.L(lst.Ar, lst.En)</span></div>
+                <div class="hm-small hm-muted">@lp.Company?.NameAr</div>
+                <div style="font-size:1.4rem;font-weight:800;color:#15803d;margin:.4rem 0" class="hm-num">@HrCalendar.Money(lp.TotalNet)</div>
+                <a class="btn btn-ghost btn-sm" asp-controller="Payroll" asp-action="Details" asp-route-id="@lp.Id">@L.L("فتح المسير", "Open run")</a>
+            </div>
+        </div>
+    }
+</div>

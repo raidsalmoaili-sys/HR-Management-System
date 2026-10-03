@@ -1,0 +1,116 @@
+@model Project_HR_1.Models.ViewModels.Management.BulkImportResultVM
+@{
+    ViewData["Title"] = L.L("نتيجة الاستيراد", "Import Result");
+    bool allOk   = Model.Errors.Count == 0;
+    bool hasErrs = Model.Errors.Count > 0;
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("نتيجة استيراد الموظفين", "Employee Import Result")</h2>
+        <div class="sub">@L.L("ملخص عملية الاستيراد من ملف Excel", "Summary of the Excel import operation")</div>
+    </div>
+    <div class="page-head-actions">
+        <a asp-action="Index" class="btn btn-ghost btn-sm">
+            <i class="fa-solid fa-id-card me-1"></i>@L.L("قائمة الموظفين", "Employees List")
+        </a>
+        <a asp-action="BulkImport" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-upload me-1"></i>@L.L("استيراد آخر", "Import Another")
+        </a>
+    </div>
+</div>
+
+@* Summary cards *@
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+
+    <div class="stat-card" style="--rail:var(--hr-primary)">
+        <div class="stat-label">@L.L("إجمالي الصفوف", "Total Rows")</div>
+        <div class="stat-value">@Model.TotalRows</div>
+    </div>
+
+    <div class="stat-card" style="--rail:#16a34a">
+        <div class="stat-label">@L.L("تمت الإضافة", "Imported")</div>
+        <div class="stat-value text-green-700">@Model.Imported</div>
+    </div>
+
+    <div class="stat-card" style="--rail:@(hasErrs ? "#dc2626" : "#16a34a")">
+        <div class="stat-label">@L.L("صفوف بها أخطاء", "Rows with Errors")</div>
+        <div class="stat-value @(hasErrs ? "text-red-600" : "text-green-700")">@Model.Errors.Count</div>
+    </div>
+
+</div>
+
+@* Success banner *@
+@if (allOk && Model.Imported > 0)
+{
+    <div class="flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-5 py-4 mb-6">
+        <i class="fa-solid fa-circle-check text-green-600 text-2xl"></i>
+        <div>
+            <div class="font-semibold text-green-800">@L.L("تمت العملية بنجاح", "Import completed successfully")</div>
+            <div class="text-sm text-green-700">
+                @L.L("تمت إضافة", "Added")
+                <strong>@Model.Imported</strong>
+                @L.L("موظف بدون أخطاء.", "employee(s) without any errors.")
+            </div>
+        </div>
+    </div>
+}
+
+@if (Model.Imported == 0 && !hasErrs)
+{
+    <div class="flex items-center gap-3 rounded-xl bg-yellow-50 border border-yellow-200 px-5 py-4 mb-6">
+        <i class="fa-solid fa-triangle-exclamation text-yellow-600 text-2xl"></i>
+        <div class="text-sm text-yellow-800">
+            @L.L("لم يُعثر على صفوف في الملف أو كانت الصفوف فارغة.", "No data rows found in the file or all rows were empty.")
+        </div>
+    </div>
+}
+
+@* Errors table *@
+@if (hasErrs)
+{
+    <div class="data-card">
+        <div class="card-head">
+            <div class="card-title text-red-600">
+                <i class="fa-solid fa-circle-xmark me-1"></i>
+                @L.L("الصفوف التي فيها أخطاء", "Rows with Errors")
+            </div>
+            <span class="text-xs text-muted">@Model.Errors.Count @L.L("صف", "row(s)")</span>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table text-sm">
+                <thead>
+                    <tr>
+                        <th class="w-16">@L.L("رقم الصف", "Row #")</th>
+                        <th>@L.L("رمز الموظف", "Employee Code")</th>
+                        <th>@L.L("البريد الإلكتروني", "Email")</th>
+                        <th>@L.L("سبب الخطأ", "Error Reason")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Errors)
+                    {
+                        <tr>
+                            <td class="text-center font-mono text-muted">
+                                @(e.RowNumber > 0 ? e.RowNumber.ToString() : "—")
+                            </td>
+                            <td class="font-mono">@(string.IsNullOrEmpty(e.EmployeeCode) ? "—" : e.EmployeeCode)</td>
+                            <td class="text-muted">@(string.IsNullOrEmpty(e.Email) ? "—" : e.Email)</td>
+                            <td>
+                                <span class="text-red-600">
+                                    <i class="fa-solid fa-circle-exclamation me-1 text-xs"></i>@e.Error
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="px-4 py-3 border-t border-gray-100 text-sm text-muted">
+            <i class="fa-solid fa-info-circle me-1"></i>
+            @L.L(
+                "صحِّح هذه الصفوف في ملف Excel وأعد رفعه.",
+                "Fix these rows in your Excel file and upload it again.")
+        </div>
+    </div>
+}

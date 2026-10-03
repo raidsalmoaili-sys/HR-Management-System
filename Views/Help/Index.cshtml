@@ -1,0 +1,90 @@
+@model Project_HR_1.Models.ViewModels.Help.MyTicketsVM
+@{ ViewData["Title"] = L.T("help_h"); }
+
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-ink">@L.T("help_h")</h1>
+        <p class="text-muted text-sm">@L.T("help_my_tickets")</p>
+    </div>
+    <a asp-action="New" class="btn btn-primary">
+        <i class="fa-solid fa-plus me-2"></i>@L.T("help_new_ticket")
+    </a>
+</div>
+
+<div class="card">
+    @if (Model.Tickets.Count == 0)
+    {
+        <div class="text-center text-muted py-8">@L.T("help_no_tickets")</div>
+    }
+    else
+    {
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-start border-b border-slate-200 text-muted">
+                    <th class="py-2 px-2 text-start">@L.T("help_ticket_code")</th>
+                    <th class="py-2 px-2 text-start">@L.T("help_subject")</th>
+                    <th class="py-2 px-2 text-start">@L.T("help_priority")</th>
+                    <th class="py-2 px-2 text-start">@L.T("status")</th>
+                    <th class="py-2 px-2 text-start">@L.T("date")</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in Model.Tickets)
+                {
+                    <tr class="border-b border-slate-100 hover:bg-slate-50">
+                        <td class="py-2 px-2 font-mono text-xs">@t.TicketCode</td>
+                        <td class="py-2 px-2">@t.Subject</td>
+                        <td class="py-2 px-2">
+                            <span class="badge @PriorityClass(t.Priority)">@PriorityLabel(t.Priority)</span>
+                        </td>
+                        <td class="py-2 px-2">
+                            <span class="badge @StatusClass(t.Status)">@StatusLabel(t.Status)</span>
+                        </td>
+                        <td class="py-2 px-2 text-muted text-xs">@t.CreatedAt.ToString("yyyy-MM-dd")</td>
+                        <td class="py-2 px-2 text-end">
+                            <a asp-action="Ticket" asp-route-id="@t.Id" class="text-accent-deep hover:text-accent text-xs">
+                                @L.T("details") <i class="fa-solid fa-arrow-right ms-1"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@functions {
+    string PriorityClass(Project_HR_1.Models.Hr.Support.TicketPriority p) => p switch
+    {
+        Project_HR_1.Models.Hr.Support.TicketPriority.Low    => "badge-muted",
+        Project_HR_1.Models.Hr.Support.TicketPriority.Normal => "badge-info",
+        Project_HR_1.Models.Hr.Support.TicketPriority.High   => "badge-warning",
+        Project_HR_1.Models.Hr.Support.TicketPriority.Urgent => "badge-danger",
+        _ => "badge-muted"
+    };
+    string PriorityLabel(Project_HR_1.Models.Hr.Support.TicketPriority p) => p switch
+    {
+        Project_HR_1.Models.Hr.Support.TicketPriority.Low    => L.T("help_priority_low"),
+        Project_HR_1.Models.Hr.Support.TicketPriority.Normal => L.T("help_priority_normal"),
+        Project_HR_1.Models.Hr.Support.TicketPriority.High   => L.T("help_priority_high"),
+        Project_HR_1.Models.Hr.Support.TicketPriority.Urgent => L.T("help_priority_urgent"),
+        _ => p.ToString()
+    };
+    string StatusClass(Project_HR_1.Models.Hr.Support.TicketStatus s) => s switch
+    {
+        Project_HR_1.Models.Hr.Support.TicketStatus.Open       => "badge-info",
+        Project_HR_1.Models.Hr.Support.TicketStatus.InProgress => "badge-warning",
+        Project_HR_1.Models.Hr.Support.TicketStatus.Resolved   => "badge-success",
+        Project_HR_1.Models.Hr.Support.TicketStatus.Closed     => "badge-muted",
+        _ => "badge-muted"
+    };
+    string StatusLabel(Project_HR_1.Models.Hr.Support.TicketStatus s) => s switch
+    {
+        Project_HR_1.Models.Hr.Support.TicketStatus.Open       => L.T("help_status_open"),
+        Project_HR_1.Models.Hr.Support.TicketStatus.InProgress => L.T("help_status_inprogress"),
+        Project_HR_1.Models.Hr.Support.TicketStatus.Resolved   => L.T("help_status_resolved"),
+        Project_HR_1.Models.Hr.Support.TicketStatus.Closed     => L.T("help_status_closed"),
+        _ => s.ToString()
+    };
+}

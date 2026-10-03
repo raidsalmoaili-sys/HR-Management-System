@@ -1,0 +1,43 @@
+@{
+    var currentId = ViewData["CurrentServiceId"] as string;
+    var currentSvc = string.IsNullOrEmpty(currentId) ? null : ServiceCatalog.ById(currentId);
+    var arrow = L.IsRtl ? "fa-chevron-left" : "fa-chevron-right";
+}
+<nav class="svc-nav">
+    <div class="svc-nav-inner">
+        <div class="topbar-bc">
+            <a asp-controller="Entry" asp-action="Launcher">
+                <i class="fa-solid fa-house"></i> @L.T("home")
+            </a>
+            <span class="sep"><i class="fa-solid @arrow"></i></span>
+            <a asp-controller="Entry" asp-action="Launcher">@L.T("services")</a>
+            @if (currentSvc != null)
+            {
+                <span class="sep"><i class="fa-solid @arrow"></i></span>
+                <span class="current">@L.L(currentSvc.NameAr, currentSvc.NameEn)</span>
+            }
+        </div>
+        <div class="svc-quick-jump">
+            @foreach (var id in ServiceCatalog.PinnedQuickJump)
+            {
+                var s = ServiceCatalog.ById(id);
+                if (s == null) continue;
+                var active = id == currentId;
+                <a class="qj-chip @(active ? "active" : "")"
+                   asp-controller="Service" asp-action="Show" asp-route-id="@id"
+                   title="@L.L(s.NameAr, s.NameEn)">
+                    <i class="fa-solid @s.Icon"></i>
+                    <span class="hidden sm:inline">@L.L(s.NameAr, s.NameEn)</span>
+                    @if (s.Badge.HasValue)
+                    {
+                        <span class="qj-badge">@s.Badge</span>
+                    }
+                </a>
+            }
+            <a class="qj-chip qj-more" asp-controller="Entry" asp-action="Launcher">
+                <i class="fa-solid fa-ellipsis"></i>
+                <span class="hidden sm:inline">@L.T("more")</span>
+            </a>
+        </div>
+    </div>
+</nav>

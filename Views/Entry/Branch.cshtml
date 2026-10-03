@@ -1,0 +1,61 @@
+@model Project_HR_1.Models.ViewModels.Entry.BranchStepVM
+@{ Layout = "_EntryLayout"; var cName = Model.Company != null ? L.L(Model.Company.ShortNameAr ?? Model.Company.NameAr, Model.Company.ShortNameEn ?? Model.Company.NameEn) : ""; }
+
+<div class="entry-header">
+    <div class="entry-eyebrow">@L.L("الخطوة", "Step") 2 @L.L("من", "of") 2 · @cName</div>
+    <h1>@L.T("chooseBranchH")</h1>
+    <p>@L.T("chooseBranchP") <span class="text-accent font-bold">@cName</span></p>
+</div>
+
+@if (Model.Company != null)
+{
+    <form asp-action="EnterCompanyScope" method="post" class="scope-cta scope-cta-company" onclick="this.submit();">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="companyId" value="@Model.Company.Id" />
+        <div class="scope-cta-icon"><i class="fa-solid fa-building"></i></div>
+        <div class="scope-cta-body">
+            <div class="scope-cta-eyebrow">@L.T("scopeCompany")</div>
+            <h3>@L.T("viewAllBranchesIn") @cName</h3>
+            <p>@L.T("viewAllBranchesDesc")</p>
+        </div>
+        <div class="scope-cta-arrow"><i class="fa-solid @(L.IsRtl ? "fa-arrow-left" : "fa-arrow-right")"></i></div>
+    </form>
+}
+
+<div class="entry-divider"><span>@L.T("pickBranch")</span></div>
+
+<div class="choice-grid cols-3">
+    @foreach (var b in Model.Branches)
+    {
+        <form asp-action="ChooseBranch" method="post" class="choice-card @(b.IsPrimary ? "featured" : "")" onclick="this.submit();">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="companyId" value="@Model.Company?.Id" />
+            <input type="hidden" name="branchId" value="@b.Id" />
+            <div class="choice-card-top">
+                <div class="choice-avatar gold"><i class="fa-solid fa-location-dot"></i></div>
+                <div class="choice-card-title">
+                    <h3>@L.L(b.NameAr, b.NameEn ?? b.NameAr)</h3>
+                    <div class="sector"><i class="fa-solid fa-city"></i> @(b.City ?? "")</div>
+                </div>
+                @if (b.IsPrimary)
+                {
+                    <span class="featured-pill">@L.T("primary")</span>
+                }
+            </div>
+            <div class="choice-card-stats">
+                <div class="choice-stat"><div class="v">@b.EmployeesCount</div><div class="l">@L.T("emp_count")</div></div>
+            </div>
+            <div class="choice-card-footer">
+                @if (!string.IsNullOrEmpty(b.NatAddressShort))
+                {
+                    <span class="last"><i class="fa-solid fa-map-pin"></i> @b.NatAddressShort</span>
+                }
+                <span class="enter">@L.T("enter") <i class="fa-solid @(L.IsRtl ? "fa-arrow-left" : "fa-arrow-right")"></i></span>
+            </div>
+        </form>
+    }
+    @if (Model.Branches.Count == 0)
+    {
+        <div class="empty-state">@L.L("لا توجد فروع", "No branches available.")</div>
+    }
+</div>

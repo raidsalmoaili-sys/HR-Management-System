@@ -1,0 +1,45 @@
+@model Project_HR_1.Models.ViewModels.Management.ActivityLogListVM
+@{ ViewData["Title"] = "Activity Log"; }
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("سجل النشاط", "Activity Log")</h2>
+        <div class="sub">@L.L("آخر 200 حدث في النظام", "Last 200 system events")</div>
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i>@L.L("الأحداث", "Events")</div>
+        <span class="text-xs text-muted">@Model.Entries.Count @L.L("سجل", "rows")</span>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("التاريخ", "Time")</th>
+                    <th>@L.L("الكيان", "Entity")</th>
+                    <th>@L.L("الإجراء", "Action")</th>
+                    <th>@L.L("المستخدم", "User")</th>
+                    <th>@L.L("التفاصيل", "Details")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Entries.Count == 0)
+            {
+                <tr class="empty"><td colspan="5">@L.L("لا توجد سجلات", "No entries.")</td></tr>
+            }
+            @foreach (var l in Model.Entries)
+            {
+                <tr>
+                    <td class="text-muted text-xs">@l.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@l.EntityType <span class="text-muted">#@l.EntityId</span></td>
+                    <td><span class="badge badge-info">@l.Action</span></td>
+                    <td class="text-muted text-xs">@l.UserId</td>
+                    <td class="text-muted">@l.Details</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

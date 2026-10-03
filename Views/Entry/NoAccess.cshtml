@@ -1,0 +1,12 @@
+@{ ViewData["Title"] = "No Access"; Layout = "_AuthLayout"; }
+<div class="auth-card text-center">
+    <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-rose-100 text-rose-600 text-xl mb-3">
+        <i class="fa-solid fa-ban"></i>
+    </div>
+    <h1 class="text-xl font-bold text-ink mb-2">@L.L("لا توجد صلاحية", "No access")</h1>
+    <p class="text-sm text-muted mb-4">@L.L("لم يتم ربط حسابك بأي صلاحية بعد. الرجاء مراجعة المسؤول.", "Your account has no permissions yet. Please contact your administrator.")</p>
+    <form asp-controller="Account" asp-action="Logout" method="post">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-primary">@L.T("logout")</button>
+    </form>
+</div>

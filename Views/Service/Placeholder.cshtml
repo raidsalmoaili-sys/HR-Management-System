@@ -1,0 +1,19 @@
+@model Project_HR_1.Models.Hr.HrService
+@{
+    ViewData["Title"] = L.L(Model.NameAr, Model.NameEn);
+    ViewData["CurrentServiceId"] = Model.Id;
+}
+
+<div class="card max-w-2xl mx-auto text-center">
+    <div class="inline-flex items-center justify-center w-14 h-14 rounded-ctrl text-white text-2xl mb-3"
+         style="background:@Model.Color">
+        <i class="fa-solid @Model.Icon"></i>
+    </div>
+    <h1 class="text-2xl font-bold text-ink mb-1">@L.L(Model.NameAr, Model.NameEn)</h1>
+    <p class="text-muted text-sm mb-4">
+        @(L.IsRtl ? "هذه الخدمة قيد التطوير." : "This service is not yet implemented.")
+    </p>
+    <p class="text-xs text-muted">
+        @(L.IsRtl ? "خطة الميزة:" : "Feature plan:") <code>docs/features/@(Model.Id).md</code>
+    </p>
+</div>

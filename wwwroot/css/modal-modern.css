@@ -1,0 +1,75 @@
+/* Modern dialog look for every <dialog class="modal"> in the system.
+   Same visual language as the "إنشاء حساب دخول" dialog (Views/Employees/_LoginAccount.cshtml).
+   Plain CSS on purpose: works without rebuilding Tailwind. Loaded after app.min.css in _HtmlHead.
+   See docs/features/modern-modals.md */
+
+dialog.modal { border: 0; border-radius: 22px; padding: 0; overflow: hidden; background: #fff;
+    width: min(94vw, 34rem); box-shadow: 0 30px 80px -20px rgba(15, 23, 42, .45); }
+dialog.modal.wide { width: min(96vw, 72rem); }
+dialog.modal[open] { animation: mm-pop .22s cubic-bezier(.2, .9, .3, 1.2); }
+dialog.modal::backdrop { background: rgba(15, 23, 42, .5); backdrop-filter: blur(3px); }
+@keyframes mm-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+dialog.modal > form { display: flex; flex-direction: column; max-height: calc(100dvh - 2rem); }
+
+/* ── header: navy hero ── */
+dialog.modal .modal-header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 22px; border: 0; color: #fff; flex: none;
+    background: radial-gradient(120% 160% at 0% 0%, rgba(200, 168, 75, .28), transparent 55%), linear-gradient(135deg, #1a2744, #25375f); }
+dialog.modal .modal-title { display: flex; align-items: center; gap: 12px; min-width: 0; color: #fff; font-size: 1.05rem; font-weight: 800; }
+dialog.modal .modal-title > i { color: #e6cf85; }
+.mm-ico { width: 44px; height: 44px; flex: none; border-radius: 14px; display: grid; place-items: center; font-size: 1.05rem;
+    background: rgba(255, 255, 255, .1); color: #e6cf85; box-shadow: inset 0 0 0 1.5px rgba(200, 168, 75, .55); }
+.mm-txt { display: grid; gap: 1px; min-width: 0; line-height: 1.35; }
+.mm-txt small { font-size: .7rem; font-weight: 700; color: #e6cf85; letter-spacing: .02em; }
+dialog.modal .modal-close { width: 34px; height: 34px; border-radius: 10px; border: 0; cursor: pointer; flex: none; display: grid; place-items: center;
+    background: rgba(255, 255, 255, .1); color: #fff; transition: background .15s; }
+dialog.modal .modal-close:hover { background: rgba(255, 255, 255, .22); color: #fff; }
+dialog.modal .modal-close:focus { outline: none; box-shadow: none; }
+dialog.modal .modal-close:focus-visible { box-shadow: 0 0 0 2px rgba(200, 168, 75, .8); }
+
+/* ── body ── */
+dialog.modal .modal-body { padding: 22px; background: #fff; max-height: none; overflow-y: auto; flex: 1 1 auto; }
+dialog.modal .auth-label, dialog.modal .modal-body label:not(.st-opt):not([class*="chk"]):not(.inline) {
+    font-size: .82rem; font-weight: 700; color: #1a2744; }
+dialog.modal .auth-label { display: block; margin-bottom: 7px; }
+
+dialog.modal .auth-input, dialog.modal .select-box,
+dialog.modal .modal-body input[type=text], dialog.modal .modal-body input[type=email], dialog.modal .modal-body input[type=number],
+dialog.modal .modal-body input[type=date], dialog.modal .modal-body input[type=tel], dialog.modal .modal-body input[type=password],
+dialog.modal .modal-body select, dialog.modal .modal-body textarea {
+    width: 100%; min-height: 46px; border: 1.5px solid #e2e8f0; border-radius: 12px; background-color: #f8fafc;
+    font: inherit; font-size: .92rem; color: #0f172a; padding: 10px 14px; outline: 0; box-shadow: none;
+    transition: border-color .15s, box-shadow .15s, background-color .15s; }
+dialog.modal .modal-body textarea { min-height: 88px; line-height: 1.7; resize: vertical; }
+dialog.modal .select-box, dialog.modal .modal-body select { padding-inline-start: 14px; padding-inline-end: 38px; cursor: pointer; }
+[dir="rtl"] dialog.modal .select-box, [dir="rtl"] dialog.modal .modal-body select { padding-inline-start: 38px; padding-inline-end: 14px; }
+dialog.modal .auth-input:hover, dialog.modal .select-box:hover,
+dialog.modal .modal-body select:hover, dialog.modal .modal-body textarea:hover, dialog.modal .modal-body input:hover { border-color: #cbd5e1; }
+dialog.modal .auth-input:focus, dialog.modal .select-box:focus, dialog.modal .modal-body input:focus,
+dialog.modal .modal-body select:focus, dialog.modal .modal-body textarea:focus {
+    border-color: #1a2744; background-color: #fff; box-shadow: 0 0 0 4px rgba(26, 39, 68, .08); }
+dialog.modal .modal-body input[type=checkbox], dialog.modal .modal-body input[type=radio], dialog.modal .modal-body input[type=file] {
+    width: auto; min-height: 0; padding: 0; border: revert; background: revert; box-shadow: none; }
+dialog.modal .modal-body input[type=checkbox], dialog.modal .modal-body input[type=radio] { accent-color: #1a2744; }
+dialog.modal .modal-body input::placeholder, dialog.modal .modal-body textarea::placeholder { color: #cbd5e1; }
+dialog.modal .modal-body input:disabled, dialog.modal .modal-body select:disabled { opacity: .6; cursor: not-allowed; }
+dialog.modal .validation-summary-valid { display: none; }
+dialog.modal .auth-error { border-radius: 12px; }
+
+/* ── footer ── */
+dialog.modal .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; flex: none;
+    background: #f8fafc; border-top: 1px solid #eef1f5; }
+dialog.modal .modal-footer .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 20px;
+    border-radius: 12px; border: 0; font-size: .9rem; font-weight: 700; white-space: nowrap;
+    transition: transform .1s, box-shadow .15s, background .15s, opacity .15s; }
+dialog.modal .modal-footer .btn:active { transform: translateY(1px); }
+dialog.modal .modal-footer .btn-ghost { background: transparent; color: #475569; }
+dialog.modal .modal-footer .btn-ghost:hover { background: #eef1f5; }
+dialog.modal .modal-footer .btn-primary { background: linear-gradient(135deg, #1a2744, #2a3d68); color: #fff; box-shadow: 0 8px 18px -8px rgba(26, 39, 68, .7); }
+dialog.modal .modal-footer .btn-primary:hover { box-shadow: 0 10px 22px -8px rgba(26, 39, 68, .85); }
+dialog.modal .modal-footer .btn:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+
+@media (max-width: 480px) {
+    dialog.modal .modal-footer .btn { flex: 1; }
+    dialog.modal .modal-body { padding: 18px; }
+}

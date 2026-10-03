@@ -1,0 +1,164 @@
+@model Project_HR_1.Models.ViewModels.Modules.PayrollRunVM
+@using Project_HR_1.Models.Hr.Modules
+@using Project_HR_1.Services.HrModules
+@{
+    var r = Model.Run;
+    var st = PayrollStatuses.Get(r.Status);
+    var isDraft = r.Status == PayrollStatuses.Draft;
+    var editable = isDraft && Model.Perms.CanEdit;
+    ViewData["Title"] = L.L("مسير ", "Payroll ") + r.PeriodLabel;
+    var items = Model.Items;
+    string M(decimal v) => HrCalendar.Money(v);
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("مسير رواتب", "Payroll") @L.L(HrCalendar.MonthNameAr(r.Month), HrCalendar.MonthNameEn(r.Month)) <span class="hm-num">@r.Year</span> <span class="badge badge-@st.Badge">@L.L(st.Ar, st.En)</span></h2>
+        <div class="sub">@(r.Company != null ? L.L(r.Company.NameAr, r.Company.NameEn) : "")
+            @if (r.ApprovedAt.HasValue) { <span> · @L.L("اعتُمد", "Approved") <span class="hm-num">@r.ApprovedAt.Value.ToLocalTime().ToString("yyyy/MM/dd")</span></span> }
+            @if (r.PaidAt.HasValue) { <span> · @L.L("صُرف", "Paid") <span class="hm-num">@r.PaidAt.Value.ToLocalTime().ToString("yyyy/MM/dd")</span></span> }
+        </div>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost btn-sm" asp-action="Index" asp-route-year="@r.Year"><i class="fa-solid fa-arrow-right me-1"></i>@L.L("المسيرات", "All runs")</a>
+        <a class="btn btn-ghost btn-sm" asp-action="Payslips" asp-route-id="@r.Id" target="_blank"><i class="fa-solid fa-receipt me-1"></i>@L.L("قسائم الرواتب", "Payslips")</a>
+        <a class="btn btn-ghost btn-sm" asp-action="BankFile" asp-route-id="@r.Id"><i class="fa-solid fa-building-columns me-1"></i>@L.L("ملف البنك", "Bank file")</a>
+        @if (isDraft && Model.Perms.CanEdit)
+        {
+            <form asp-action="Recalculate" asp-route-id="@r.Id" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-rotate me-1"></i>@L.L("إعادة احتساب", "Recalculate")</button>
+            </form>
+        }
+        @if (isDraft && Model.Perms.CanApprove)
+        {
+            <form asp-action="Approve" asp-route-id="@r.Id" method="post" class="inline" onsubmit="return confirm('@L.L("اعتماد المسير؟ سيتم خصم أقساط السلف ولن يمكن تعديله بعد ذلك.", "Approve? Advance installments will be applied and the run will be locked.")');">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-primary btn-sm" type="submit"><i class="fa-solid fa-stamp me-1"></i>@L.L("اعتماد", "Approve")</button>
+            </form>
+        }
+        @if (r.Status == PayrollStatuses.Approved && Model.Perms.CanApprove)
+        {
+            <form asp-action="MarkPaid" asp-route-id="@r.Id" method="post" class="inline">
+                @Html.AntiForgeryToken()
+                <button class="btn btn-accent btn-sm" type="submit"><i class="fa-solid fa-money-check-dollar me-1"></i>@L.L("تسجيل الصرف", "Mark as paid")</button>
+            </form>
+        }
+        @if (isDraft && Model.Perms.CanDelete)
+        {
+            <form asp-action="Delete" asp-route-id="@r.Id" method="post" class="inline" onsubmit="return confirm('@L.L("حذف المسودة؟", "Delete this draft?")');">
+                @Html.AntiForgeryToken()
+                <button class="icon-btn icon-btn-danger" type="submit" title="@L.L("حذف", "Delete")"><i class="fa-solid fa-trash"></i></button>
+            </form>
+        }
+    </div>
+</div>
+
+<partial name="_ModuleFlash" />
+
+<div class="hm-summary" style="margin-bottom:1rem">
+    <div><small>@L.L("عدد الموظفين", "Employees")</small><b>@items.Count</b></div>
+    <div><small>@L.L("إجمالي الاستحقاقات", "Gross pay")</small><b class="hm-num">@M(items.Sum(i => i.Gross))</b></div>
+    <div class="ded"><small>@L.L("التأمينات الاجتماعية", "GOSI")</small><b class="hm-num">@M(items.Sum(i => i.GosiDeduction))</b></div>
+    <div class="ded"><small>@L.L("إجمالي الاستقطاعات", "Total deductions")</small><b class="hm-num">@M(items.Sum(i => i.TotalDeductions))</b></div>
+    <div class="net"><small>@L.L("صافي الرواتب", "Net pay")</small><b class="hm-num">@M(items.Sum(i => i.Net))</b></div>
+</div>
+
+<div class="data-card">
+    <form method="get" class="filter-bar">
+        <input type="hidden" name="id" value="@r.Id" />
+        <select name="branchId" class="select-box" onchange="this.form.submit()">
+            <option value="">@L.L("كل الفروع", "All branches")</option>
+            @foreach (var b in Model.BranchNames) { <option value="@b.Key" selected="@(Model.BranchId == b.Key ? "selected" : null)">@b.Value</option> }
+        </select>
+        <span class="hm-spacer"></span>
+        @if (editable) { <span class="hm-small hm-muted">@L.L("عدّل المكافآت والخصومات اليدوية ثم اضغط حفظ", "Edit bonuses / manual deductions, then save")</span> }
+    </form>
+
+    <form method="post" asp-action="SaveAdjustments" asp-route-id="@r.Id">
+        @Html.AntiForgeryToken()
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>@L.L("الموظف", "Employee")</th>
+                        <th class="hm-right">@L.L("الأساسي", "Basic")</th>
+                        <th class="hm-right">@L.L("البدلات", "Allowances")</th>
+                        <th class="hm-right">@L.L("مكافآت/إضافي", "Additions")</th>
+                        <th class="hm-center">@L.L("غياب", "Absent")</th>
+                        <th class="hm-right">@L.L("خصم الغياب", "Absence")</th>
+                        <th class="hm-right">@L.L("التأمينات", "GOSI")</th>
+                        <th class="hm-right">@L.L("السلفة", "Advance")</th>
+                        <th class="hm-right">@L.L("خصومات أخرى", "Other ded.")</th>
+                        <th class="hm-right">@L.L("الصافي", "Net")</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (items.Count == 0)
+                {
+                    <tr class="empty"><td colspan="11">@L.L("لا يوجد موظفون في هذا المسير", "No employees in this run.")</td></tr>
+                }
+                @for (var i = 0; i < items.Count; i++)
+                {
+                    var it = items[i];
+                    var allowances = it.HousingAllowance + it.TransportAllowance + it.OtherAllowance;
+                    <tr>
+                        <td>
+                            <div class="font-semibold">@(it.Employee != null ? L.L(it.Employee.NameAr, it.Employee.NameEn) : "—")</div>
+                            <div class="hm-small hm-muted">@it.Employee?.EmployeeCode · @Model.BranchNames.GetValueOrDefault(it.BranchId)</div>
+                            @if (!editable && !string.IsNullOrEmpty(it.Notes)) { <div class="hm-small hm-muted">@it.Notes</div> }
+                        </td>
+                        <td class="hm-right hm-num">@M(it.BasicSalary)</td>
+                        <td class="hm-right hm-num" title="@L.L("سكن", "Housing") @M(it.HousingAllowance) · @L.L("نقل", "Transport") @M(it.TransportAllowance) · @L.L("أخرى", "Other") @M(it.OtherAllowance)">@M(allowances)</td>
+                        <td class="hm-right">
+                            @if (editable)
+                            {
+                                <input type="hidden" name="items[@i].ItemId" value="@it.Id" />
+                                <input type="number" step="0.01" min="0" name="items[@i].Additions" value="@it.Additions.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="hm-cell-input hm-num" />
+                            }
+                            else { <span class="hm-num">@M(it.Additions)</span> }
+                        </td>
+                        <td class="hm-center">@(it.AbsentDays + it.UnpaidLeaveDays > 0 ? $"{it.AbsentDays}+{it.UnpaidLeaveDays}" : "—")</td>
+                        <td class="hm-right hm-num" style="color:#b91c1c">@(it.AbsenceDeduction > 0 ? M(it.AbsenceDeduction) : "—")</td>
+                        <td class="hm-right hm-num" style="color:#b91c1c">@(it.GosiDeduction > 0 ? M(it.GosiDeduction) : "—")</td>
+                        <td class="hm-right hm-num" style="color:#b91c1c">@(it.AdvanceDeduction > 0 ? M(it.AdvanceDeduction) : "—")</td>
+                        <td class="hm-right">
+                            @if (editable)
+                            {
+                                <input type="number" step="0.01" min="0" name="items[@i].OtherDeductions" value="@it.OtherDeductions.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" class="hm-cell-input hm-num" />
+                                <input type="text" name="items[@i].Notes" value="@it.Notes" maxlength="300" placeholder="@L.L("ملاحظة", "Note")" class="hm-cell-input" style="margin-top:.25rem" />
+                            }
+                            else { <span class="hm-num">@(it.OtherDeductions > 0 ? M(it.OtherDeductions) : "—")</span> }
+                        </td>
+                        <td class="hm-right hm-num hm-strong" style="color:#15803d">@M(it.Net)</td>
+                        <td><a class="icon-btn" asp-action="Payslips" asp-route-id="@r.Id" asp-route-employeeId="@it.EmployeeId" target="_blank" title="@L.L("قسيمة الراتب", "Payslip")"><i class="fa-solid fa-receipt"></i></a></td>
+                    </tr>
+                }
+                </tbody>
+                @if (items.Count > 0)
+                {
+                    <tfoot>
+                        <tr class="hm-tfoot">
+                            <td>@L.L("الإجمالي", "Total")</td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.BasicSalary))</td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.HousingAllowance + x.TransportAllowance + x.OtherAllowance))</td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.Additions))</td>
+                            <td></td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.AbsenceDeduction))</td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.GosiDeduction))</td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.AdvanceDeduction))</td>
+                            <td class="hm-right hm-num">@M(items.Sum(x => x.OtherDeductions))</td>
+                            <td class="hm-right hm-num" style="color:#15803d">@M(items.Sum(x => x.Net))</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+        @if (editable && items.Count > 0)
+        {
+            <div class="filter-bar"><span class="hm-spacer"></span><button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk me-1"></i>@L.L("حفظ التعديلات", "Save adjustments")</button></div>
+        }
+    </form>
+</div>

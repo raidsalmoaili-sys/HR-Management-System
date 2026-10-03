@@ -1,0 +1,124 @@
+@model Project_HR_1.Models.ViewModels.Management.PrintRosterResultVM
+@{
+    ViewData["Title"] = L.L("مراجعة كشف الموظفين", "Review Employee Roster");
+    var isRtl = L.IsRtl;
+    var r = Model.Request;
+    var portrait = r.Orientation == "portrait";
+    var ltrKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EmployeeCode", "Email", "NationalId", "IqamaNumber", "PassportNumber", "Phone", "Iban", "EmergencyContactPhone", "CertificateNumber", "DirectSupervisorCode" };
+    string Dt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
+}
+
+<link rel="stylesheet" href="~/css/print-roster.css" asp-append-version="true" />
+@if (portrait)
+{
+    <style>@@media print { @@page { size: A4 portrait; } }</style>
+}
+
+<div class="prs">
+    <div class="prs-head">
+        <div>
+            <h2>@L.L("مراجعة كشف الموظفين", "Review Employee Roster")</h2>
+            <div class="sub">@L.L("راجع الكشف كاملاً ثم اطبعه أو صدّره. للتعديل ارجع لصفحة الإعداد.", "Review the whole roster, then print or export it. To change it, go back to the setup page.")</div>
+        </div>
+        <div class="prs-head-actions">
+            <a asp-action="Index" class="prs-btn prs-btn-ghost"><i class="fa-solid @(isRtl ? "fa-arrow-right" : "fa-arrow-left")"></i>@L.L("العودة للموظفين", "Back to Employees")</a>
+        </div>
+    </div>
+
+    <div class="prs-stage">
+        <div class="prs-sheet @(portrait ? "portrait" : "")">
+            <div class="prs-sheet-head">
+                <div class="brand">
+                    <div class="mark"><i class="fa-solid fa-users"></i></div>
+                    <div>
+                        <h5>@L.L("كشف الموظفين", "Employee Roster")</h5>
+                        <div style="color:#5b6577;font-size:10.5px">@Model.ScopeSummary</div>
+                    </div>
+                </div>
+                <div class="meta">
+                    @L.L("تاريخ الطباعة", "Printed"): @Model.GeneratedAt.ToString("yyyy-MM-dd HH:mm")<br />
+                    @if (!string.IsNullOrEmpty(Model.GeneratedBy)) { <text>@L.L("أعدّه", "By"): @Model.GeneratedBy</text> }
+                </div>
+            </div>
+
+            @if (r.ShowFilters && Model.FilterSummary.Count > 0)
+            {
+                <div class="prs-sheet-filters">
+                    @foreach (var f in Model.FilterSummary)
+                    {
+                        var i = f.IndexOf(':');
+                        if (i > 0) { <span>@f[..(i + 1)] <b>@f[(i + 1)..].Trim()</b></span> } else { <span><b>@f</b></span> }
+                    }
+                </div>
+            }
+
+            <div class="prs-sheet-wrap">
+                <table class="prs-table">
+                    <thead>
+                        <tr>
+                            @if (r.RowNumbers) { <th class="n">#</th> }
+                            @foreach (var h in Model.ColumnHeaders) { <th>@h</th> }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Rows.Count == 0)
+                        {
+                            <tr class="empty"><td colspan="@(Model.ColumnHeaders.Count + (r.RowNumbers ? 1 : 0))">@L.L("لا يوجد موظفون يطابقون هذا الاختيار", "No employees match this selection")</td></tr>
+                        }
+                        @for (int i = 0; i < Model.Rows.Count; i++)
+                        {
+                            var row = Model.Rows[i];
+                            <tr>
+                                @if (r.RowNumbers) { <td class="n">@(i + 1)</td> }
+                                @for (int c = 0; c < row.Length; c++)
+                                {
+                                    var key = c < Model.ColumnKeys.Count ? Model.ColumnKeys[c] : "";
+                                    <td class="@(ltrKeys.Contains(key) ? "ltr" : "")">@(string.IsNullOrEmpty(row[c]) ? "—" : row[c])</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="prs-sheet-foot">
+                <span>@L.L("إجمالي الموظفين", "Total employees"): @Model.EmployeeCount</span>
+                <span>@Model.ColumnHeaders.Count @L.L("عمود", "columns")</span>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" asp-action="PrintPdf" class="prs-actionbar">
+        @Html.AntiForgeryToken()
+        @foreach (var id in r.CompanyIds ?? Array.Empty<int>()) { <input type="hidden" name="CompanyIds" value="@id" /> }
+        @foreach (var id in r.BranchIds ?? Array.Empty<int>()) { <input type="hidden" name="BranchIds" value="@id" /> }
+        @foreach (var col in Model.ColumnKeys) { <input type="hidden" name="Columns" value="@col" /> }
+        <input type="hidden" name="Q" value="@r.Q" />
+        <input type="hidden" name="Status" value="@r.Status" />
+        <input type="hidden" name="Nationality" value="@r.Nationality" />
+        <input type="hidden" name="DepartmentId" value="@r.DepartmentId" />
+        <input type="hidden" name="JobTitleId" value="@r.JobTitleId" />
+        <input type="hidden" name="SponsorId" value="@r.SponsorId" />
+        <input type="hidden" name="HiredFrom" value="@Dt(r.HiredFrom)" />
+        <input type="hidden" name="HiredTo" value="@Dt(r.HiredTo)" />
+        <input type="hidden" name="ContractType" value="@r.ContractType" />
+        <input type="hidden" name="DocExpiryDays" value="@r.DocExpiryDays" />
+        <input type="hidden" name="Orientation" value="@r.Orientation" />
+        <input type="hidden" name="RowNumbers" value="@(r.RowNumbers ? "true" : "false")" />
+        <input type="hidden" name="ShowFilters" value="@(r.ShowFilters ? "true" : "false")" />
+
+        <div class="info"><b>@Model.EmployeeCount</b> @L.L("موظف", "employees") · <b>@Model.ColumnHeaders.Count</b> @L.L("عمود", "columns") · @(portrait ? L.L("A4 عمودي", "A4 portrait") : L.L("A4 أفقي", "A4 landscape"))</div>
+        <div class="prs-btnrow" style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="prs-btn prs-btn-ghost" data-go-back="@Url.Action("PrintSetup")"><i class="fa-solid fa-pen"></i>@L.L("تعديل", "Edit")</button>
+            <button type="submit" formaction="@Url.Action("PrintExcel")" class="prs-btn prs-btn-excel"><i class="fa-solid fa-file-excel"></i>Excel</button>
+            <button type="submit" formaction="@Url.Action("PrintPdf")" class="prs-btn prs-btn-pdf"><i class="fa-solid fa-file-pdf"></i>PDF</button>
+            <button type="button" class="prs-btn prs-btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i>@L.L("طباعة", "Print")</button>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    @if (r.AutoPrint)
+    {
+        <script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));</script>
+    }
+}

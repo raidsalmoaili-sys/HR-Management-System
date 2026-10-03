@@ -1,0 +1,346 @@
+@model Project_HR_1.Models.ViewModels.Management.BulkImportVM
+@using Project_HR_1.Models.Hr
+@{
+    ViewData["Title"] = L.L("استيراد موظفين", "Bulk Import Employees");
+    var sections = EmployeeImportColumns.Sections;
+
+    // Group columns by their section, in original order, for the column picker table.
+    var columnGroups = new List<(ImportSection Sec, int SecIdx, List<(EmployeeImportColumn Col, int Index)> Cols)>();
+    {
+        int si = 0;
+        for (int i = 0; i < Model.Columns.Count; i++)
+        {
+            int ci = i + 1;
+            while (si < sections.Count - 1 && ci > sections[si].ToCol) si++;
+            if (columnGroups.Count == 0 || columnGroups[^1].SecIdx != si)
+                columnGroups.Add((sections[si], si, new List<(EmployeeImportColumn, int)>()));
+            columnGroups[^1].Cols.Add((Model.Columns[i], ci));
+        }
+    }
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("استيراد موظفين من Excel", "Bulk Import Employees")</h2>
+        <div class="sub">@L.L("رفع ملف Excel لإضافة عدة موظفين دفعة واحدة", "Upload an Excel file to add multiple employees at once")</div>
+    </div>
+    <div class="page-head-actions">
+        <a asp-action="Index" class="btn btn-ghost btn-sm">
+            <i class="fa-solid fa-arrow-right me-1"></i>@L.L("العودة للموظفين", "Back to Employees")
+        </a>
+    </div>
+</div>
+
+@if (TempData["err"] is string err && !string.IsNullOrEmpty(err))
+{
+    <div class="auth-error mb-4">
+        <i class="fa-solid fa-circle-exclamation me-1"></i> @err
+    </div>
+}
+
+@* ── Import the company's ready employee sheet (no template) — docs/features/employee-sheet-import.md ── *@
+<div class="data-card mb-6" style="border:2px solid #1d6f42">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-file-import" style="color:#1d6f42"></i>@L.L("استيراد كشف الموظفين الجاهز (بدون قالب)", "Import the ready employee sheet (no template)")</div>
+        <span class="badge badge-success">@L.L("موصى به", "Recommended")</span>
+    </div>
+    <div class="p-4 text-sm">
+        <p class="mb-3 text-muted">
+            @L.L("ارفع كشف الموظفين كما هو (مثل ملف «قاعدة بيانات الموظفين» بأعمدة: رقم الموظف، اسم الموظف، الجنسية، رقم الهوية، الاداره، جهة العمل، الكفيل ...). النظام يتعرف على الأعمدة تلقائياً، ينشئ الشركات والفروع والكفلاء الناقصة، ويصحح الأخطاء الشائعة. ستظهر لك معاينة كاملة قبل الحفظ — لن يُحفظ شيء إلا بعد تأكيدك.",
+                   "Upload the employee sheet as-is. Columns are detected automatically, missing companies/branches/sponsors are created, and common mistakes are corrected. You'll get a full preview — nothing is saved until you confirm.")
+        </p>
+        <form method="post" asp-action="ImportSheetPreview" enctype="multipart/form-data" class="flex flex-wrap items-end gap-3">
+            @Html.AntiForgeryToken()
+            <div>
+                <label class="auth-label">@L.L("ملف الكشف (.xlsx)", "Sheet file (.xlsx)")</label>
+                <input type="file" name="file" accept=".xlsx" required class="auth-input" />
+            </div>
+            <div>
+                <label class="auth-label">@L.L("الموظفون الموجودون مسبقاً (نفس رقم الموظف)", "Employees that already exist (same code)")</label>
+                <select name="mode" class="select-box">
+                    <option value="SkipExisting">@L.L("تخطيهم — أضف الجدد فقط", "Skip them — add new ones only")</option>
+                    <option value="UpdateExisting">@L.L("تحديث بياناتهم من الكشف", "Update them from the sheet")</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i>@L.L("معاينة قبل الاستيراد", "Preview")</button>
+        </form>
+    </div>
+</div>
+
+<div class="text-xs text-muted mb-3">@L.L("أو استخدم قالب النظام التفصيلي:", "Or use the detailed system template:")</div>
+
+<div class="bi-page">
+
+    @* ── Step 1: Download ─────────────────────────────── *@
+    <div class="bi-step">
+        <div class="bi-step-badge">1</div>
+        <div class="bi-step-body">
+            <div class="bi-step-head">
+                <i class="fa-solid fa-file-excel" style="color:#1d6f42"></i>
+                <strong>@L.L("اختيار الأعمدة وتحميل القالب", "Choose Columns & Download Template")</strong>
+            </div>
+            <p class="bi-step-desc">
+                @L.L(
+                    "حدد الأعمدة التي تريد تعبأتها فقط ثم حمّل القالب — سيحتوي الملف على الأعمدة المحددة فقط، ولك الحرية الكاملة في اختيار أي عمود بما فيها الأعمدة الإلزامية (مُعلَّمة بـ ✔). تنبيه: إذا استبعدت عمودًا إلزاميًا فسيُرفض الملف بالكامل عند رفعه مع توضيح الأعمدة الناقصة.",
+                    "Pick only the columns you want to fill in, then download the template — the file will only contain the columns you selected. You have full control, including over required columns (marked ✔). Note: excluding a required column will cause the whole file to be rejected on upload, with a clear list of what's missing.")
+            </p>
+
+            <form method="get" asp-action="DownloadTemplate" id="template-form">
+                <input type="hidden" name="reqSubmitted" value="1" />
+                <div class="bi-colpick-toolbar">
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllCols(true)">
+                        <i class="fa-solid fa-square-check me-1"></i>@L.L("تحديد الكل", "Select all")
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm" onclick="toggleAllCols(false)">
+                        <i class="fa-regular fa-square me-1"></i>@L.L("إلغاء الكل", "Deselect all")
+                    </button>
+                    <span class="bi-colpick-count">
+                        <span id="col-count">@Model.Columns.Count</span> / @Model.Columns.Count
+                        @L.L("عمود محدد", "columns selected")
+                    </span>
+                </div>
+                <p class="bi-step-desc" style="margin-top:.25rem">
+                    @L.L(
+                        "عمود \"إلزامي\" تحت تتحكم فيه بنفسك: أنت من يقرر أي الأعمدة تُعتبر إلزامية عند رفع الملف لاحقاً — يتم حفظ اختيارك داخل ملف القالب نفسه. كل قسم له مفتاح تحديد/إلغاء إلزامي خاص به بجانب اسمه.",
+                        "The \"Required\" column below is fully under your control: you decide which columns are treated as mandatory on upload — your choice is saved inside the template file itself. Each section has its own Required select-all/none toggle next to its name.")
+                </p>
+
+                <div class="table-wrap mt-2" style="max-height:380px;overflow-y:auto">
+                    <table class="data-table text-sm">
+                        <thead>
+                            <tr>
+                                <th class="text-center" style="width:36px"></th>
+                                <th>#</th>
+                                <th>@L.L("الاسم العربي", "Arabic")</th>
+                                <th>@L.L("الاسم الإنجليزي", "English")</th>
+                                <th class="text-center">@L.L("إلزامي", "Req")</th>
+                                <th>@L.L("ملاحظات", "Notes")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var g in columnGroups)
+                            {
+                                <tr>
+                                    <td colspan="4" style="background:rgb(@g.Sec.R,@g.Sec.G,@g.Sec.B);color:#fff;font-weight:700;font-size:.75rem;padding:.35rem .75rem;letter-spacing:.06em;text-transform:uppercase">
+                                        <label class="bi-sec-label">
+                                            <input type="checkbox" class="bi-sec-toggle" data-section="@g.SecIdx" checked
+                                                   onchange="toggleSection(@g.SecIdx, this.checked)" />
+                                            @L.L(g.Sec.NameAr, g.Sec.NameEn)
+                                        </label>
+                                    </td>
+                                    <td class="text-center" style="background:rgb(@g.Sec.R,@g.Sec.G,@g.Sec.B)">
+                                        <input type="checkbox" class="bi-sec-req-toggle" data-section="@g.SecIdx" checked
+                                               onchange="toggleSectionRequired(@g.SecIdx, this.checked)"
+                                               title="@L.L("تحديد/إلغاء الإلزامي لهذا القسم", "Toggle Required for this section")" />
+                                    </td>
+                                    <td style="background:rgb(@g.Sec.R,@g.Sec.G,@g.Sec.B)"></td>
+                                </tr>
+                                @foreach (var (col, ci) in g.Cols)
+                                {
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" name="cols" value="@col.Header" checked
+                                                   class="bi-col-input" data-section="@g.SecIdx"
+                                                   onchange="syncSectionToggle(@g.SecIdx); updateColCount(); syncReqCheckbox(this);" />
+                                        </td>
+                                        <td class="text-muted">@ci</td>
+                                        <td class="font-medium">@col.NameAr</td>
+                                        <td><code class="text-xs">@col.Header</code></td>
+                                        <td class="text-center">
+                                            <input type="checkbox" name="required" value="@col.Header"
+                                                   class="bi-req-input" data-section="@g.SecIdx"
+                                                   data-default-required="@(col.Required ? "true" : "false")"
+                                                   onchange="syncSectionReqToggle(@g.SecIdx)"
+                                                   @(col.Required ? "checked" : "") />
+                                        </td>
+                                        <td class="text-muted text-xs">@L.L(col.NoteAr, col.NoteEn)</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="submit" class="btn btn-primary mt-3">
+                    <i class="fa-solid fa-file-arrow-down me-1"></i>
+                    @L.L("تحميل القالب (xlsx)", "Download Template (xlsx)")
+                </button>
+            </form>
+
+            <div class="bi-sections-legend">
+                @for (int si = 0; si < sections.Count; si++)
+                {
+                    var sec = sections[si];
+                    <span class="bi-sec-chip"
+                          style="background:rgb(@sec.R,@sec.G,@sec.B);color:#fff">
+                        @L.L(sec.NameAr, sec.NameEn)
+                        <small>@L.L($"أعمدة {sec.FromCol}–{sec.ToCol}", $"cols {sec.FromCol}–{sec.ToCol}")</small>
+                    </span>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── Step 2: Upload ───────────────────────────────── *@
+    <div class="bi-step">
+        <div class="bi-step-badge">2</div>
+        <div class="bi-step-body">
+            <div class="bi-step-head">
+                <i class="fa-solid fa-upload" style="color:#7c3aed"></i>
+                <strong>@L.L("رفع الملف وبدء الاستيراد", "Upload & Start Import")</strong>
+            </div>
+            <form method="post" asp-action="BulkImport" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div id="drop-zone" class="bi-drop-zone" onclick="document.getElementById('file-input').click()">
+                    <i class="fa-solid fa-file-arrow-up bi-drop-ico"></i>
+                    <p class="bi-drop-lbl" id="drop-label">
+                        @L.L("اسحب الملف هنا أو انقر للاختيار", "Drag file here or click to choose")
+                    </p>
+                    <span class="bi-drop-hint">@L.L("يقبل ملفات .xlsx فقط", "Accepts .xlsx files only")</span>
+                    <input id="file-input" type="file" name="file" accept=".xlsx" class="hidden"
+                           onchange="handleFileChange(this)" />
+                </div>
+                <button type="submit" class="btn btn-primary mt-4" id="submit-btn" disabled>
+                    <i class="fa-solid fa-upload me-1"></i>@L.L("رفع وبدء الاستيراد", "Upload & Import")
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.bi-page { display: flex; flex-direction: column; gap: 1.25rem; max-width: 860px; }
+
+.bi-step {
+    display: flex; gap: 1rem;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.bi-step-badge {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: #1a2744; color: #fff;
+    font-size: .9rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+}
+.bi-step-body { flex: 1; min-width: 0; }
+.bi-step-head {
+    display: flex; align-items: center; gap: .5rem;
+    font-size: 1rem; margin-bottom: .75rem;
+}
+.bi-step-desc { font-size: .85rem; color: #475569; margin-bottom: 1rem; line-height: 1.6; }
+
+/* Section legend chips */
+.bi-sections-legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .875rem; }
+.bi-sec-chip {
+    display: inline-flex; flex-direction: column; align-items: center;
+    padding: .25rem .625rem; border-radius: 7px;
+    font-size: .72rem; font-weight: 700; line-height: 1.3;
+}
+.bi-sec-chip small { font-size: .62rem; font-weight: 400; opacity: .85; }
+
+/* Column picker */
+.bi-colpick-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.bi-colpick-count { font-size: .78rem; color: #64748b; margin-inline-start: auto; }
+.bi-sec-label { display: flex; align-items: center; gap: .4rem; cursor: pointer; }
+.bi-sec-label input { cursor: pointer; }
+
+/* Drop zone */
+.bi-drop-zone {
+    border: 2px dashed #cbd5e1; border-radius: 12px;
+    padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+}
+.bi-drop-zone:hover, .bi-drop-zone.dragover { border-color: #2563eb; background: #eff6ff; }
+.bi-drop-zone.has-file { border-color: #16a34a; background: #f0fdf4; }
+.bi-drop-ico { font-size: 2.2rem; color: #94a3b8; display: block; margin-bottom: .75rem; }
+.bi-drop-lbl { font-size: .9rem; color: #475569; margin: 0 0 .25rem; }
+.bi-drop-hint { font-size: .75rem; color: #94a3b8; }
+</style>
+
+<script>
+function handleFileChange(input) {
+    const label = document.getElementById('drop-label');
+    const zone  = document.getElementById('drop-zone');
+    const btn   = document.getElementById('submit-btn');
+    if (input.files && input.files[0]) {
+        label.textContent = input.files[0].name;
+        zone.classList.add('has-file');
+        zone.classList.remove('dragover');
+        btn.disabled = false;
+    }
+}
+
+function toggleAllCols(check) {
+    document.querySelectorAll('.bi-col-input').forEach(cb => { cb.checked = check; syncReqCheckbox(cb); });
+    document.querySelectorAll('.bi-sec-toggle').forEach(cb => cb.checked = check);
+    updateColCount();
+}
+
+function toggleSection(secIdx, checked) {
+    document.querySelectorAll('.bi-col-input[data-section="' + secIdx + '"]').forEach(cb => { cb.checked = checked; syncReqCheckbox(cb); });
+    updateColCount();
+}
+
+function syncSectionToggle(secIdx) {
+    const boxes = document.querySelectorAll('.bi-col-input[data-section="' + secIdx + '"]');
+    const allChecked = Array.from(boxes).every(cb => cb.checked);
+    const toggle = document.querySelector('.bi-sec-toggle[data-section="' + secIdx + '"]');
+    if (toggle) toggle.checked = allChecked;
+}
+
+function updateColCount() {
+    document.getElementById('col-count').textContent = document.querySelectorAll('.bi-col-input:checked').length;
+}
+
+// Per-section Required toggle: only touches this section's currently-included (non-disabled)
+// columns — excluded columns are already forced unchecked/disabled by syncReqCheckbox.
+function toggleSectionRequired(secIdx, checked) {
+    document.querySelectorAll('.bi-req-input[data-section="' + secIdx + '"]:not(:disabled)').forEach(cb => cb.checked = checked);
+    syncSectionReqToggle(secIdx);
+}
+
+// Keeps a section's Required toggle checkbox reflecting whether all of that section's
+// included columns are currently marked required.
+function syncSectionReqToggle(secIdx) {
+    const boxes = Array.from(document.querySelectorAll('.bi-req-input[data-section="' + secIdx + '"]')).filter(cb => !cb.disabled);
+    const allChecked = boxes.every(cb => cb.checked);
+    const toggle = document.querySelector('.bi-sec-req-toggle[data-section="' + secIdx + '"]');
+    if (toggle) toggle.checked = allChecked;
+}
+
+// A column that isn't included in the file can't be marked required — grey its
+// "Required" checkbox out while excluded, and restore it to its default when re-included.
+function syncReqCheckbox(colInput) {
+    const row = colInput.closest('tr');
+    const reqInput = row.querySelector('.bi-req-input');
+    if (!reqInput) return;
+    if (colInput.checked) {
+        reqInput.disabled = false;
+        reqInput.checked = reqInput.dataset.defaultRequired === 'true';
+    } else {
+        reqInput.disabled = true;
+        reqInput.checked = false;
+    }
+    syncSectionReqToggle(colInput.dataset.section);
+}
+
+(function () {
+    const zone  = document.getElementById('drop-zone');
+    const input = document.getElementById('file-input');
+    zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        if (e.dataTransfer.files[0]) {
+            const dt = new DataTransfer();
+            dt.items.add(e.dataTransfer.files[0]);
+            input.files = dt.files;
+            handleFileChange(input);
+        }
+    });
+})();
+</script>

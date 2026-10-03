@@ -1,0 +1,48 @@
+@model Project_HR_1.Models.ViewModels.Management.LoginLogListVM
+@{ ViewData["Title"] = "Login Log"; }
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("سجل الدخول", "Login Log")</h2>
+        <div class="sub">@L.L("آخر 200 محاولة تسجيل دخول", "Last 200 login attempts")</div>
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-right-to-bracket"></i>@L.L("المحاولات", "Attempts")</div>
+        <span class="text-xs text-muted">@Model.Entries.Count @L.L("سجل", "rows")</span>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("التاريخ", "Time")</th>
+                    <th>@L.L("البريد", "Email")</th>
+                    <th class="text-center">@L.L("النتيجة", "Result")</th>
+                    <th>@L.L("السبب", "Reason")</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Entries.Count == 0)
+            {
+                <tr class="empty"><td colspan="5">@L.L("لا توجد سجلات", "No entries.")</td></tr>
+            }
+            @foreach (var l in Model.Entries)
+            {
+                <tr>
+                    <td class="text-muted text-xs">@l.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                    <td>@l.Email</td>
+                    <td class="text-center">
+                        @if (l.Success) { <span class="badge badge-success">@L.L("نجح", "OK")</span> }
+                        else            { <span class="badge badge-danger">@L.L("فشل", "Fail")</span> }
+                    </td>
+                    <td class="text-muted">@l.FailureReason</td>
+                    <td class="text-muted text-xs">@l.IpAddress</td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

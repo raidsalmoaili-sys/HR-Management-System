@@ -1,0 +1,126 @@
+@model Project_HR_1.Models.ViewModels.Management.HrRolesListVM
+@using Project_HR_1.Models.Hr
+@using Project_HR_1.Models.Hr.HrPermissions
+@using Project_HR_1.Models.ViewModels.Management
+@{ ViewData["Title"] = "Roles"; }
+
+@functions {
+    HrRoleEditVM ToEditVM(HrRole r)
+    {
+        var vm = HrRoleEditVM.Empty();
+        vm.Id = r.Id; vm.Code = r.Code; vm.NameAr = r.NameAr; vm.NameEn = r.NameEn;
+        vm.Description = r.Description; vm.IsSystem = r.IsSystem;
+        foreach (var c in vm.Cells)
+            c.Checked = r.Permissions.Any(p => p.ServiceId == c.ServiceId && p.Permission == c.Permission);
+        return vm;
+    }
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("الأدوار", "Roles")</h2>
+        <div class="sub">@L.L("تعريف الأدوار وصلاحياتها", "Define roles and their permissions")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-create">
+                <i class="fa-solid fa-plus me-1"></i>@L.L("دور جديد", "New Role")
+            </button>
+        }
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-user-shield"></i>@L.L("كل الأدوار", "All Roles")</div>
+        <span class="text-xs text-muted">@Model.Roles.Count @L.L("سجل", "rows")</span>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الرمز", "Code")</th>
+                    <th>@L.L("الاسم", "Name")</th>
+                    <th>@L.L("الوصف", "Description")</th>
+                    <th class="text-center">@L.L("الصلاحيات", "Permissions")</th>
+                    <th class="text-center">@L.L("نظام", "System")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Roles.Count == 0)
+            {
+                <tr class="empty"><td colspan="6">@L.L("لا توجد أدوار", "No roles.")</td></tr>
+            }
+            @foreach (var r in Model.Roles)
+            {
+                <tr>
+                    <td class="text-muted text-xs">@r.Code</td>
+                    <td class="font-semibold">@L.L(r.NameAr, r.NameEn)</td>
+                    <td class="text-muted text-sm">@(r.Description ?? "—")</td>
+                    <td class="text-center">@r.Permissions.Count</td>
+                    <td class="text-center">@(r.IsSystem ? "✓" : "")</td>
+                    <td class="text-end whitespace-nowrap">
+                        @if (Model.CanEdit)
+                        {
+                            <button type="button" class="icon-btn" data-modal-open="modal-edit-@r.Id"><i class="fa-solid fa-pen"></i></button>
+                        }
+                        @if (Model.CanDelete && !r.IsSystem)
+                        {
+                            <form asp-action="Delete" asp-route-id="@r.Id" method="post" class="inline" onsubmit="return confirm('@L.L("حذف الدور؟", "Delete role?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.CanCreate)
+{
+    <dialog id="modal-create" class="modal wide">
+        <form method="post" asp-action="Create">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-user-shield"></i></span><span class="mm-txt"><small>@L.L("الأدوار", "Roles")</small>@L.L("دور جديد", "New Role")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <partial name="_HrRoleFields" model="HrRoleEditVM.Empty()" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("إنشاء", "Create")</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@if (Model.CanEdit)
+{
+    foreach (var r in Model.Roles)
+    {
+        var vm = ToEditVM(r);
+        <dialog id="modal-edit-@r.Id" class="modal wide">
+            <form method="post" asp-action="Edit" asp-route-id="@r.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-pen-to-square"></i></span><span class="mm-txt"><small>@L.L("الأدوار", "Roles")</small>@L.L("تعديل الدور", "Edit Role")</span></span>
+                    <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <partial name="_HrRoleFields" model="vm" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="btn btn-primary">@L.L("حفظ", "Save")</button>
+                </div>
+            </form>
+        </dialog>
+    }
+}

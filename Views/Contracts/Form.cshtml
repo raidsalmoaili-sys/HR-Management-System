@@ -1,0 +1,115 @@
+@model Project_HR_1.Models.ViewModels.Modules.ContractFormVM
+@{
+    var title = Model.Id.HasValue ? L.L("تعديل العقد", "Edit contract") : Model.RenewFromId.HasValue ? L.L("تجديد العقد", "Renew contract") : L.L("عقد عمل جديد", "New employment contract");
+    ViewData["Title"] = title;
+}
+
+<div class="page-head">
+    <div>
+        <h2>@title</h2>
+        <div class="sub">@L.L("وفق نظام العمل السعودي — فترة التجربة حتى 180 يوماً، والإجازة السنوية 21 يوماً على الأقل", "Per the Saudi Labor Law — probation up to 180 days, annual leave at least 21 days")</div>
+    </div>
+    <div class="page-head-actions">
+        <a class="btn btn-ghost btn-sm" asp-action="Index"><i class="fa-solid fa-arrow-right me-1"></i>@L.L("رجوع للعقود", "Back to contracts")</a>
+    </div>
+</div>
+
+<form method="post" asp-action="Save" class="data-card hm-pad">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="RenewFromId" />
+    <div asp-validation-summary="All" class="hm-flash err" style="display:@(ViewData.ModelState.IsValid ? "none" : "flex")"></div>
+
+    <div class="hm-form two">
+        <div class="hm-section-title">@L.L("الطرف الثاني (الموظف)", "Employee")</div>
+        <div class="full">
+            <label class="auth-label">@L.L("الموظف", "Employee")</label>
+            @if (Model.Id.HasValue || Model.RenewFromId.HasValue)
+            {
+                var pick = Model.Employees.FirstOrDefault(e => e.Id == Model.EmployeeId);
+                <input type="hidden" name="EmployeeId" value="@Model.EmployeeId" />
+                <div class="auth-input" style="background:#f8fafc">@(pick != null ? L.L(pick.NameAr, pick.NameEn) + " · " + pick.Code : "#" + Model.EmployeeId)</div>
+            }
+            else
+            {
+                <select name="EmployeeId" class="auth-input" required id="ct-emp">
+                    <option value="">@L.L("— اختر الموظف —", "— Choose employee —")</option>
+                    @foreach (var e in Model.Employees)
+                    {
+                        <option value="@e.Id" selected="@(e.Id == Model.EmployeeId ? "selected" : null)">@L.L(e.NameAr, e.NameEn) · @e.Code @(e.BranchAr != null ? "· " + e.BranchAr : "")</option>
+                    }
+                </select>
+                <div class="hm-hint">@L.L("عند اختيار الموظف تُعبأ بيانات الراتب والمسمى من ملفه تلقائياً", "Choosing an employee pre-fills salary and title from the file")</div>
+            }
+        </div>
+        <div class="full">
+            <label class="auth-label">@L.L("المسمى الوظيفي في العقد", "Job title")</label>
+            <input asp-for="JobTitleAr" class="auth-input" maxlength="160" />
+        </div>
+
+        <div class="hm-section-title">@L.L("المدة", "Term")</div>
+        <div>
+            <label class="auth-label">@L.L("نوع العقد", "Contract type")</label>
+            <select asp-for="ContractType" class="auth-input" id="ct-type">
+                <option value="@ContractType.Limited">@L.L("محدد المدة", "Fixed-term")</option>
+                <option value="@ContractType.Unlimited">@L.L("غير محدد المدة", "Open-ended")</option>
+            </select>
+        </div>
+        <div>
+            <label class="auth-label">@L.L("فترة التجربة (يوم)", "Probation (days)")</label>
+            <input asp-for="ProbationDays" type="number" min="0" max="180" class="auth-input" />
+        </div>
+        <div>
+            <label class="auth-label">@L.L("تاريخ البداية", "Start date")</label>
+            <input asp-for="StartDate" type="date" class="auth-input" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+        </div>
+        <div id="ct-end-wrap">
+            <label class="auth-label">@L.L("تاريخ النهاية", "End date")</label>
+            <input asp-for="EndDate" type="date" class="auth-input" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+            <span asp-validation-for="EndDate" class="hm-hint" style="color:#b91c1c"></span>
+        </div>
+
+        <div class="hm-section-title">@L.L("الأجر الشهري (ر.س)", "Monthly pay (SAR)")</div>
+        <div><label class="auth-label">@L.L("الراتب الأساسي", "Basic salary")</label><input name="BasicSalary" value="@Model.BasicSalary.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0" class="auth-input" data-sum /></div>
+        <div><label class="auth-label">@L.L("بدل السكن", "Housing allowance")</label><input name="HousingAllowance" value="@Model.HousingAllowance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0" class="auth-input" data-sum /></div>
+        <div><label class="auth-label">@L.L("بدل النقل", "Transport allowance")</label><input name="TransportAllowance" value="@Model.TransportAllowance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0" class="auth-input" data-sum /></div>
+        <div><label class="auth-label">@L.L("بدلات أخرى", "Other allowances")</label><input name="OtherAllowance" value="@Model.OtherAllowance.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)" type="number" step="0.01" min="0" class="auth-input" data-sum /></div>
+        <div class="full hm-note">@L.L("إجمالي الأجر الشهري:", "Total monthly pay:") <b class="hm-num" id="ct-total">0</b> @L.L("ر.س", "SAR")</div>
+
+        <div class="hm-section-title">@L.L("ساعات العمل والإجازات", "Hours & leave")</div>
+        <div><label class="auth-label">@L.L("أيام العمل أسبوعياً", "Work days / week")</label><input asp-for="WeeklyWorkDays" type="number" min="1" max="7" class="auth-input" /></div>
+        <div><label class="auth-label">@L.L("ساعات العمل يومياً", "Hours / day")</label><input asp-for="DailyWorkHours" type="number" min="1" max="12" class="auth-input" /></div>
+        <div><label class="auth-label">@L.L("الإجازة السنوية (يوم)", "Annual leave (days)")</label><input asp-for="AnnualLeaveDays" type="number" min="21" max="60" class="auth-input" /></div>
+        <div><label class="auth-label">@L.L("فترة الإشعار (يوم)", "Notice period (days)")</label><input asp-for="NoticePeriodDays" type="number" min="0" max="180" class="auth-input" /></div>
+
+        <div class="full">
+            <label class="auth-label">@L.L("شروط إضافية", "Additional terms")</label>
+            <textarea asp-for="ExtraTerms" rows="3" class="auth-input" maxlength="2000"></textarea>
+        </div>
+        <label class="full hm-row hm-small">
+            <input type="checkbox" asp-for="SyncEmployee" />
+            @L.L("تحديث ملف الموظف (الراتب والبدلات وتواريخ العقد) ليطابق هذا العقد", "Update the employee file (salary, allowances, contract dates) to match this contract")
+        </label>
+    </div>
+
+    <div class="hm-row" style="margin-top:1.25rem">
+        <span class="hm-spacer"></span>
+        <a class="btn btn-ghost" asp-action="Index">@L.L("إلغاء", "Cancel")</a>
+        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-1"></i>@L.L("حفظ العقد", "Save contract")</button>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+(() => {
+    const emp = document.getElementById('ct-emp');
+    emp?.addEventListener('change', () => { if (emp.value) location.href = '@Url.Action("Form")?employeeId=' + emp.value; });
+    const type = document.getElementById('ct-type'), endWrap = document.getElementById('ct-end-wrap');
+    const toggle = () => endWrap.style.visibility = type.value === '@ContractType.Unlimited' ? 'hidden' : 'visible';
+    type.addEventListener('change', toggle); toggle();
+    const total = document.getElementById('ct-total');
+    const sum = () => total.textContent = [...document.querySelectorAll('[data-sum]')].reduce((s, i) => s + (parseFloat(i.value) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    document.querySelectorAll('[data-sum]').forEach(i => i.addEventListener('input', sum)); sum();
+})();
+</script>
+}

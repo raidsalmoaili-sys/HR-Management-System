@@ -1,0 +1,677 @@
+@model Project_HR_1.Models.ViewModels.Management.PrintRosterSetupVM
+@using Project_HR_1.Models.Hr
+@{
+    ViewData["Title"] = L.L("طباعة كشف الموظفين", "Print Employee Roster");
+    var isRtl = L.IsRtl;
+    var sections = EmployeeImportColumns.Sections;
+
+    // Printable columns grouped by their import section (InitialPassword is never printed).
+    var groups = new List<object>();
+    for (int si = 0; si < sections.Count; si++)
+    {
+        var sec = sections[si];
+        var cols = new List<object>();
+        for (int ci = sec.FromCol; ci <= sec.ToCol && ci <= EmployeeImportColumns.All.Count; ci++)
+        {
+            var col = EmployeeImportColumns.All[ci - 1];
+            if (col.Header == "InitialPassword") continue;
+            // BranchSlug prints the branch *name*, so label it as such here.
+            var label = col.Header == "BranchSlug" ? L.L("الفرع", "Branch") : col.NameAr;
+            cols.Add(new { key = col.Header, label });
+        }
+        // Report-only columns (e.g. employee status) live in the first group.
+        if (si == 0)
+            foreach (var extra in Project_HR_1.Services.Reports.EmployeeColumnReader.ExtraColumns)
+                cols.Insert(1, new { key = extra.Header, label = extra.NameAr });
+        groups.Add(new { id = "s" + si, name = L.L(sec.NameAr, sec.NameEn), color = $"rgb({sec.R},{sec.G},{sec.B})", cols });
+    }
+
+        var T = new Dictionary<string, string>
+        {
+            ["all"] = L.L("الكل", "All"),
+            ["selected"] = L.L("مختارة", "selected"),
+            ["none"] = L.L("لا يوجد", "None"),
+            ["noResults"] = L.L("لا توجد نتائج", "No results"),
+            ["noBranches"] = L.L("لا توجد فروع للشركات المختارة", "No branches for the selected companies"),
+            ["branchesWord"] = L.L("فروع", "branches"),
+            ["scopeAll"] = L.L("لم يتم تحديد نطاق — سيشمل الكشف جميع الشركات والفروع ضمن صلاحيتك.", "No scope selected — the roster includes every company and branch in your scope."),
+            ["scopeAllShort"] = L.L("جميع الشركات والفروع", "All companies and branches"),
+            ["remove"] = L.L("إزالة", "Remove"),
+            ["activeFilters"] = L.L("الفلاتر النشطة:", "Active filters:"),
+            ["clearAll"] = L.L("مسح الكل", "Clear all"),
+            ["noFilters"] = L.L("لا توجد فلاتر — سيظهر كل الموظفين ضمن النطاق.", "No filters — every employee in scope is included."),
+            ["active"] = L.L("نشط", "active"),
+            ["noCols"] = L.L("لم يتم اختيار أعمدة", "No columns selected"),
+            ["pickCol"] = L.L("اختر عموداً واحداً على الأقل", "Pick at least one column"),
+            ["noEmp"] = L.L("لا يوجد موظفون يطابقون الاختيار", "No employees match"),
+            ["total"] = L.L("إجمالي الموظفين", "Total employees"),
+            ["page"] = L.L("صفحة 1 من", "Page 1 of"),
+            ["collapse"] = L.L("طي المجموعات", "Collapse groups"),
+            ["expand"] = L.L("فتح المجموعات", "Expand groups"),
+            ["noColFound"] = L.L("لا يوجد عمود بهذا الاسم", "No column matches"),
+            ["warn"] = L.L("اخترت {n} عموداً — الورقة {o} تتسع لحوالي {m} أعمدة بوضوح. قلّل الأعمدة أو غيّر الاتجاه، أو استخدم Excel.", "You picked {n} columns — a {o} page fits about {m} clearly. Remove some, switch orientation, or use Excel."),
+            ["land"] = L.L("الأفقية", "landscape"),
+            ["port"] = L.L("العمودية", "portrait"),
+            ["tplPlaceholder"] = L.L("القوالب…", "Templates…"),
+            ["tplBuiltIn"] = L.L("قوالب جاهزة", "Built-in"),
+            ["tplMine"] = L.L("قوالبي", "My templates"),
+            ["tplName"] = L.L("اسم القالب:", "Template name:"),
+            ["tplSaved"] = L.L("تم حفظ القالب", "Template saved"),
+            ["tplApplied"] = L.L("تم تطبيق القالب", "Template applied"),
+            ["tplDelete"] = L.L("حذف القالب المحدد", "Delete selected template"),
+            ["tplDeleted"] = L.L("تم حذف القالب", "Template deleted"),
+            ["preparing"] = L.L("جاري تجهيز الملف…", "Preparing file…"),
+            ["status"] = L.L("الحالة", "Status"),
+            ["tplBasic"] = L.L("كشف البيانات الأساسية", "Basic roster"),
+            ["tplIqama"] = L.L("كشف الإقامات القريبة من الانتهاء", "Iqamas expiring soon"),
+            ["tplPayroll"] = L.L("كشف الرواتب", "Payroll roster"),
+            ["tplJob"] = L.L("كشف البيانات الوظيفية", "Job roster"),
+        };
+    var pageData = new
+    {
+        companies = Model.Companies.Select(c => new { id = c.Id, name = L.L(c.NameAr, c.NameEn), count = Model.CompanyEmployeeCounts.GetValueOrDefault(c.Id) }),
+        branches = Model.Branches.Select(b => new { id = b.Id, co = b.CompanyId, name = L.L(b.NameAr, b.NameEn ?? b.NameAr), count = Model.BranchEmployeeCounts.GetValueOrDefault(b.Id) }),
+        groups,
+        total = Model.TotalEmployees,
+        today = DateTime.Now.ToString("yyyy-MM-dd"),
+        user = User.Identity?.Name ?? "",
+        summaryUrl = Url.Action("PrintSummary"),
+        rtl = isRtl,
+    };
+}
+
+<link rel="stylesheet" href="~/css/print-roster.css" asp-append-version="true" />
+
+<div class="prs">
+    <div class="prs-head">
+        <div>
+            <h2>@L.L("طباعة كشف الموظفين", "Print Employee Roster")</h2>
+            <div class="sub">@L.L("حدد النطاق والفلاتر والأعمدة، راجع المعاينة، ثم اطبع أو صدّر إلى PDF أو Excel.", "Pick the scope, filters and columns, check the preview, then print or export to PDF or Excel.")</div>
+        </div>
+        <div class="prs-head-actions">
+            <select class="prs-select" id="prs-tpl" style="width:230px" aria-label="@L.L("القوالب", "Templates")"></select>
+            <button type="button" class="prs-btn prs-btn-secondary" id="prs-tpl-save"><i class="fa-regular fa-bookmark"></i>@L.L("حفظ كقالب", "Save as template")</button>
+            <a asp-action="Index" class="prs-btn prs-btn-ghost"><i class="fa-solid @(isRtl ? "fa-arrow-right" : "fa-arrow-left")"></i>@L.L("العودة للموظفين", "Back to Employees")</a>
+        </div>
+    </div>
+
+    @if (TempData["err"] is string err && !string.IsNullOrEmpty(err))
+    {
+        <div class="auth-error mb-4"><i class="fa-solid fa-circle-exclamation me-1"></i> @err</div>
+    }
+
+    <form method="post" asp-action="PrintPreview" id="prs-form" autocomplete="off">
+        @Html.AntiForgeryToken()
+        <div id="prs-hidden-scope"></div>
+        <div id="prs-hidden-cols"></div>
+        <input type="hidden" name="Orientation" id="prs-orientation" value="landscape" />
+        <input type="hidden" name="Status" id="prs-status" value="" />
+        <input type="hidden" name="AutoPrint" id="prs-autoprint" value="false" />
+
+        <div class="prs-layout">
+            <div class="prs-main">
+
+                @* ── 1 · Scope ─────────────────────────────────────── *@
+                <section class="prs-card">
+                    <div class="prs-step-head">
+                        <span class="prs-step" id="prs-st1">1</span>
+                        <div class="grow">
+                            <h3><i class="fa-solid fa-building"></i>@L.L("نطاق البيانات", "Data scope")</h3>
+                            <p>@L.L("اختر شركة أو فرعاً أو أكثر. اتركهما فارغين ليشمل الكشف كل ما ضمن صلاحيتك الحالية.", "Pick one or more companies/branches, or leave both empty to include everything in your current scope.")</p>
+                        </div>
+                        <div class="prs-tools"><button type="button" class="prs-link" id="prs-scope-clear">@L.L("مسح الاختيار", "Clear selection")</button></div>
+                    </div>
+                    <div class="prs-card-body" style="display:grid;gap:14px">
+                        <div class="prs-chips" id="prs-scope-chips"></div>
+                        <div class="prs-scope">
+                            <div class="prs-pane">
+                                <div class="prs-pane-head">
+                                    <input type="checkbox" class="prs-check" id="prs-co-all" aria-label="@L.L("تحديد كل الشركات", "Select all companies")">
+                                    <h4>@L.L("الشركات", "Companies")</h4>
+                                    <span class="prs-badge" id="prs-co-count"></span>
+                                </div>
+                                <div class="prs-pane-search"><label class="prs-search sm"><i class="fa-solid fa-magnifying-glass"></i><input class="prs-input" id="prs-co-q" placeholder="@L.L("ابحث عن شركة…", "Search companies…")"></label></div>
+                                <ul class="prs-list" id="prs-co-list"></ul>
+                            </div>
+                            <div class="prs-pane">
+                                <div class="prs-pane-head">
+                                    <input type="checkbox" class="prs-check" id="prs-br-all" aria-label="@L.L("تحديد كل الفروع", "Select all branches")">
+                                    <h4>@L.L("الفروع", "Branches")</h4>
+                                    <span class="prs-badge" id="prs-br-count"></span>
+                                </div>
+                                <div class="prs-pane-search"><label class="prs-search sm"><i class="fa-solid fa-magnifying-glass"></i><input class="prs-input" id="prs-br-q" placeholder="@L.L("ابحث عن فرع…", "Search branches…")"></label></div>
+                                <ul class="prs-list" id="prs-br-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                @* ── 2 · Filters ───────────────────────────────────── *@
+                <section class="prs-card">
+                    <div class="prs-step-head">
+                        <span class="prs-step" id="prs-st2">2</span>
+                        <div class="grow">
+                            <h3><i class="fa-solid fa-filter"></i>@L.L("الفلاتر", "Filters") <span class="prs-badge soft" id="prs-f-count" hidden></span></h3>
+                            <p>@L.L("ضيّق الكشف حسب الحالة أو الجنسية أو الإدارة أو تاريخ التعيين أو انتهاء الوثائق.", "Narrow the roster by status, nationality, department, hire date or document expiry.")</p>
+                        </div>
+                        <div class="prs-tools"><button type="button" class="prs-btn sm prs-btn-ghost" id="prs-f-reset"><i class="fa-solid fa-rotate-left"></i>@L.L("إعادة تعيين", "Reset")</button></div>
+                    </div>
+                    <div class="prs-card-body">
+                        <div class="prs-filters" id="prs-filters">
+                            <div class="prs-field span-2">
+                                <label class="prs-label" for="prs-q">@L.L("بحث بالاسم أو الرمز أو رقم الهوية/الإقامة أو الجوال", "Search by name, code, ID/Iqama or mobile")</label>
+                                <label class="prs-search"><i class="fa-solid fa-magnifying-glass"></i><input class="prs-input" id="prs-q" name="Q" data-label="@L.L("بحث", "Search")" placeholder="@L.L("مثال: EMP-001 أو محمد", "e.g. EMP-001 or Mohammed")"></label>
+                            </div>
+                            <div class="prs-field span-2">
+                                <span class="prs-label">@L.L("حالة الموظف", "Employee status")</span>
+                                <div class="prs-seg block" data-seg="status">
+                                    <button type="button" aria-pressed="true" data-v="">@L.L("الكل", "All")</button>
+                                    <button type="button" aria-pressed="false" data-v="active">@L.L("على رأس العمل", "Active")</button>
+                                    <button type="button" aria-pressed="false" data-v="leave">@L.L("مجاز", "On leave")</button>
+                                    <button type="button" aria-pressed="false" data-v="resigned">@L.L("مستقيل", "Resigned")</button>
+                                    <button type="button" aria-pressed="false" data-v="absconded">@L.L("هارب", "Absconded")</button>
+                                </div>
+                            </div>
+                            <div class="prs-field">
+                                <label class="prs-label" for="prs-nat">@L.L("الجنسية", "Nationality")</label>
+                                <select class="prs-select" id="prs-nat" name="Nationality" data-label="@L.L("الجنسية", "Nationality")">
+                                    <option value="">@L.L("الكل", "All")</option>
+                                    <option value="SA">@L.L("سعودي", "Saudi")</option>
+                                    <option value="NON_SA">@L.L("غير سعودي", "Non-Saudi")</option>
+                                    <optgroup label="@L.L("جنسية محددة", "Specific")">
+                                        @foreach (var n in Model.Nationalities.Where(n => n.Code != "SA"))
+                                        {
+                                            <option value="@n.Code">@L.L(n.NameAr, n.NameEn)</option>
+                                        }
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="prs-field">
+                                <label class="prs-label" for="prs-dep">@L.L("الإدارة", "Department")</label>
+                                <select class="prs-select" id="prs-dep" name="DepartmentId" data-label="@L.L("الإدارة", "Department")">
+                                    <option value="">@L.L("الكل", "All")</option>
+                                    @foreach (var d in Model.Departments) { <option value="@d.Id">@L.L(d.NameAr, d.NameEn)</option> }
+                                </select>
+                            </div>
+                            <div class="prs-field">
+                                <label class="prs-label" for="prs-job">@L.L("المسمى الوظيفي", "Job title")</label>
+                                <select class="prs-select" id="prs-job" name="JobTitleId" data-label="@L.L("المسمى", "Job title")">
+                                    <option value="">@L.L("الكل", "All")</option>
+                                    @foreach (var j in Model.JobTitles) { <option value="@j.Id">@L.L(j.NameAr, j.NameEn)</option> }
+                                </select>
+                            </div>
+                            <div class="prs-field">
+                                <label class="prs-label" for="prs-sp">@L.L("الكفيل", "Sponsor")</label>
+                                <select class="prs-select" id="prs-sp" name="SponsorId" data-label="@L.L("الكفيل", "Sponsor")">
+                                    <option value="">@L.L("الكل", "All")</option>
+                                    @foreach (var s in Model.Sponsors) { <option value="@s.Id">@L.L(s.NameAr, s.NameEn)</option> }
+                                </select>
+                            </div>
+                            <div class="prs-field span-2">
+                                <span class="prs-label">@L.L("تاريخ الالتحاق", "Hire date")</span>
+                                <div class="prs-range">
+                                    <input class="prs-input" type="date" name="HiredFrom" data-label="@L.L("التعيين من", "Hired from")" aria-label="@L.L("من", "From")">
+                                    <span>@L.L("إلى", "to")</span>
+                                    <input class="prs-input" type="date" name="HiredTo" data-label="@L.L("التعيين إلى", "Hired to")" aria-label="@L.L("إلى", "To")">
+                                </div>
+                            </div>
+                            <div class="prs-field">
+                                <label class="prs-label" for="prs-ct">@L.L("نوع العقد", "Contract type")</label>
+                                <select class="prs-select" id="prs-ct" name="ContractType" data-label="@L.L("العقد", "Contract")">
+                                    <option value="">@L.L("الكل", "All")</option>
+                                    <option value="Limited">@L.L("محدد المدة", "Limited")</option>
+                                    <option value="Unlimited">@L.L("غير محدد المدة", "Unlimited")</option>
+                                </select>
+                            </div>
+                            <div class="prs-field">
+                                <label class="prs-label" for="prs-exp">@L.L("انتهاء الهوية / الإقامة", "ID / Iqama expiry")</label>
+                                <select class="prs-select" id="prs-exp" name="DocExpiryDays" data-label="@L.L("الهوية/الإقامة", "ID/Iqama")">
+                                    <option value="">@L.L("بدون شرط", "Any")</option>
+                                    <option value="0">@L.L("منتهية", "Expired")</option>
+                                    <option value="30">@L.L("خلال 30 يوماً", "Within 30 days")</option>
+                                    <option value="60">@L.L("خلال 60 يوماً", "Within 60 days")</option>
+                                    <option value="90">@L.L("خلال 90 يوماً", "Within 90 days")</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="prs-active" id="prs-active"></div>
+                    </div>
+                </section>
+
+                @* ── 3 · Columns ───────────────────────────────────── *@
+                <section class="prs-card">
+                    <div class="prs-step-head">
+                        <span class="prs-step" id="prs-st3">3</span>
+                        <div class="grow">
+                            <h3><i class="fa-solid fa-table-columns"></i>@L.L("الأعمدة", "Columns") <span class="prs-badge navy num" id="prs-col-count"></span></h3>
+                            <p>@L.L("اختر ما يظهر في الكشف ثم رتّبه بالسحب من قائمة «ترتيب الطباعة».", "Pick what shows on the roster, then drag to reorder in “Print order”.")</p>
+                        </div>
+                        <div class="prs-tools">
+                            <div class="prs-seg" data-seg="preset">
+                                <button type="button" data-v="basic">@L.L("أساسي", "Basic")</button>
+                                <button type="button" data-v="job">@L.L("وظيفي", "Job")</button>
+                                <button type="button" data-v="docs">@L.L("الوثائق", "Documents")</button>
+                                <button type="button" data-v="pay">@L.L("الرواتب", "Payroll")</button>
+                                <button type="button" data-v="all">@L.L("الكل", "All")</button>
+                                <button type="button" data-v="custom" aria-pressed="true">@L.L("مخصص", "Custom")</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="prs-card-body">
+                        <div class="prs-colbar">
+                            <label class="prs-search sm"><i class="fa-solid fa-magnifying-glass"></i><input class="prs-input" id="prs-col-q" placeholder="@L.L("ابحث بالاسم العربي أو اسم الحقل…", "Search by label or field name…")"></label>
+                            <button type="button" class="prs-link" id="prs-col-all">@L.L("تحديد الكل", "Select all")</button>
+                            <span class="prs-muted">·</span>
+                            <button type="button" class="prs-link" id="prs-col-none">@L.L("إلغاء الكل", "Clear all")</button>
+                            <span class="prs-muted">·</span>
+                            <button type="button" class="prs-link" id="prs-col-fold">@L.L("طي المجموعات", "Collapse groups")</button>
+                        </div>
+                        <div class="prs-cols">
+                            <div class="prs-groups" id="prs-groups"></div>
+                            <aside class="prs-order">
+                                <div class="prs-pane-head"><h4>@L.L("ترتيب الطباعة", "Print order")</h4><span class="prs-badge" id="prs-ord-count"></span></div>
+                                <ol id="prs-order"></ol>
+                                <div class="prs-order-foot"><i class="fa-solid fa-grip-vertical"></i> @L.L("اسحب لتغيير الترتيب", "Drag to reorder")</div>
+                            </aside>
+                        </div>
+                    </div>
+                </section>
+
+                @* ── 4 · Preview ───────────────────────────────────── *@
+                <section class="prs-card">
+                    <div class="prs-step-head">
+                        <span class="prs-step" id="prs-st4">4</span>
+                        <div class="grow">
+                            <h3><i class="fa-solid fa-eye"></i>@L.L("معاينة الكشف", "Preview")</h3>
+                            <p>@L.L("أول صفوف الكشف ببياناتك الفعلية كما ستظهر على الورق.", "The first rows of your real data, as they will look on paper.")</p>
+                        </div>
+                        <div class="prs-tools">
+                            <div class="prs-seg" data-seg="orient">
+                                <button type="button" aria-pressed="true" data-v="landscape">@L.L("أفقي", "Landscape")</button>
+                                <button type="button" aria-pressed="false" data-v="portrait">@L.L("عمودي", "Portrait")</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="prs-card-body" style="display:grid;gap:12px">
+                        <div class="prs-hint warn" id="prs-warn" hidden><i class="fa-solid fa-triangle-exclamation"></i><span></span></div>
+                        <div class="prs-stage">
+                            <div class="prs-sheet" id="prs-sheet">
+                                <div class="prs-sheet-head">
+                                    <div class="brand">
+                                        <div class="mark"><i class="fa-solid fa-users"></i></div>
+                                        <div><h5>@L.L("كشف الموظفين", "Employee Roster")</h5><div style="color:#5b6577;font-size:10.5px" id="prs-sh-scope"></div></div>
+                                    </div>
+                                    <div class="meta">@L.L("تاريخ الطباعة", "Printed"): @DateTime.Now.ToString("yyyy-MM-dd")<br />@L.L("أعدّه", "By"): @(User.Identity?.Name)</div>
+                                </div>
+                                <div class="prs-sheet-filters" id="prs-sh-filters"></div>
+                                <div class="prs-sheet-wrap"><table class="prs-table"><thead id="prs-sh-head"></thead><tbody id="prs-sh-body"></tbody></table></div>
+                                <div class="prs-sheet-foot"><span id="prs-sh-total"></span><span id="prs-sh-page"></span></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            @* ── Sticky summary + export ─────────────────────────────── *@
+            <aside class="prs-aside">
+                <div class="prs-panel">
+                    <div class="prs-stats" id="prs-stats">
+                        <div><b id="prs-s-emp">@Model.TotalEmployees</b><small>@L.L("موظف", "employees")</small></div>
+                        <div><b id="prs-s-col">0</b><small>@L.L("عمود", "columns")</small></div>
+                        <div><b id="prs-s-pg">0</b><small>@L.L("صفحة تقريباً", "pages approx.")</small></div>
+                    </div>
+                    <div class="prs-panel-body">
+                        <dl class="prs-kv">
+                            <div><dt>@L.L("الشركات", "Companies")</dt><dd id="prs-k-co"></dd></div>
+                            <div><dt>@L.L("الفروع", "Branches")</dt><dd id="prs-k-br"></dd></div>
+                            <div><dt>@L.L("فلاتر نشطة", "Active filters")</dt><dd id="prs-k-f"></dd></div>
+                        </dl>
+                        <hr class="prs-divider" />
+                        <div class="prs-field">
+                            <span class="prs-label">@L.L("اتجاه الورقة", "Page orientation")</span>
+                            <div class="prs-seg block" data-seg="orient">
+                                <button type="button" aria-pressed="true" data-v="landscape"><i class="fa-regular fa-file fa-rotate-90"></i> @L.L("أفقي", "Landscape")</button>
+                                <button type="button" aria-pressed="false" data-v="portrait"><i class="fa-regular fa-file"></i> @L.L("عمودي", "Portrait")</button>
+                            </div>
+                        </div>
+                        <label class="prs-toggle">@L.L("ترقيم الصفوف", "Row numbers")
+                            <input type="checkbox" class="prs-switch" id="prs-rownum" name="RowNumbers" value="true" checked /></label>
+                        <input type="hidden" name="RowNumbers" value="false" />
+                        <label class="prs-toggle">@L.L("إظهار الفلاتر أعلى الكشف", "Show filters on the sheet")
+                            <input type="checkbox" class="prs-switch" id="prs-showf" name="ShowFilters" value="true" checked /></label>
+                        <input type="hidden" name="ShowFilters" value="false" />
+                    </div>
+                    <div class="prs-panel-body sunken">
+                        <div class="prs-export">
+                            <button type="submit" class="prs-btn lg prs-btn-primary" id="prs-print" formtarget="_blank"><i class="fa-solid fa-print"></i>@L.L("طباعة الكشف", "Print")</button>
+                            <button type="submit" class="prs-btn prs-btn-pdf" formaction="@Url.Action("PrintPdf")" data-export="pdf"><i class="fa-solid fa-file-pdf"></i>PDF</button>
+                            <button type="submit" class="prs-btn prs-btn-excel" formaction="@Url.Action("PrintExcel")" data-export="excel"><i class="fa-solid fa-file-excel"></i>Excel</button>
+                        </div>
+                        <button type="submit" class="prs-btn prs-btn-secondary block" id="prs-review"><i class="fa-solid fa-table-list"></i>@L.L("مراجعة الكشف كاملاً", "Review full roster")</button>
+                        <p class="prs-note">@L.L("PDF يطابق المعاينة. Excel يصدّر كل الصفوف والأعمدة المختارة في ورقة من اليمين لليسار مع فلترة وتجميد للرأس.", "PDF matches the preview. Excel exports every row and selected column in a right-to-left sheet with filters and a frozen header.")</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
+    <div class="prs-toast" id="prs-toast"><i class="fa-solid fa-circle-check"></i><span></span></div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    const D = @Json.Serialize(pageData);
+    const T = @Json.Serialize(T);
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const form = $('#prs-form');
+
+    const allKeys = D.groups.flatMap(g => g.cols.map(c => c.key));
+    const label = {}; D.groups.forEach(g => g.cols.forEach(c => label[c.key] = c.label));
+    const presets = {
+        basic: ['EmployeeCode', 'Status', 'FirstNameAr', 'FatherNameAr', 'FamilyNameAr', 'Nationality', 'NationalId', 'IqamaNumber', 'BranchSlug', 'JobTitleName', 'Phone'],
+        job:   ['EmployeeCode', 'FirstNameAr', 'FamilyNameAr', 'BranchSlug', 'DepartmentName', 'JobTitleName', 'HireDate', 'ContractType', 'ContractStartDate', 'ContractEndDate', 'WorkLocation'],
+        docs:  ['EmployeeCode', 'FirstNameAr', 'FamilyNameAr', 'Nationality', 'NationalId', 'NationalIdExpiry', 'IqamaNumber', 'IqamaExpiry', 'PassportNumber', 'PassportExpiry', 'SponsorName'],
+        pay:   ['EmployeeCode', 'FirstNameAr', 'FamilyNameAr', 'BranchSlug', 'BasicSalary', 'HousingAllowance', 'TransportAllowance', 'OtherAllowance', 'BankName', 'Iban'],
+        all:   allKeys,
+    };
+    Object.keys(presets).forEach(k => presets[k] = presets[k].filter(x => label[x]));
+
+    const S = { co: new Set(), br: new Set(), cols: presets.basic.slice(), closed: new Set(D.groups.slice(3).map(g => g.id)), orient: 'landscape', status: '' };
+    let summary = null;   // last server response {count, headers, keys, rows}
+
+    /* ───────── scope ───────── */
+    const coName = id => (D.companies.find(c => c.id === id) || {}).name || '';
+    const visibleBranches = () => D.branches.filter(b => !S.co.size || S.co.has(b.co));
+    function setTri(el, on, total) { el.checked = total > 0 && on === total; el.indeterminate = on > 0 && on < total; }
+
+    function renderScope() {
+        const q = $('#prs-co-q').value.trim().toLowerCase();
+        $('#prs-co-list').innerHTML = D.companies.filter(c => !q || c.name.toLowerCase().includes(q)).map(c =>
+            `<li class="prs-item${S.co.has(c.id) ? ' on' : ''}" data-co="${c.id}"><input type="checkbox" class="prs-check" tabindex="-1"${S.co.has(c.id) ? ' checked' : ''}><span class="txt" title="${esc(c.name)}">${esc(c.name)}</span><span class="prs-badge num">${c.count}</span></li>`
+        ).join('') || `<li class="prs-empty">${T.noResults}</li>`;
+
+        const bq = $('#prs-br-q').value.trim().toLowerCase();
+        let html = '', last = null;
+        visibleBranches().filter(b => !bq || b.name.toLowerCase().includes(bq)).forEach(b => {
+            if (b.co !== last) { html += `<li class="prs-group-label">${esc(coName(b.co))}</li>`; last = b.co; }
+            html += `<li class="prs-item${S.br.has(b.id) ? ' on' : ''}" data-br="${b.id}"><input type="checkbox" class="prs-check" tabindex="-1"${S.br.has(b.id) ? ' checked' : ''}><span class="txt" title="${esc(b.name)}">${esc(b.name)}</span><span class="prs-badge num">${b.count}</span></li>`;
+        });
+        $('#prs-br-list').innerHTML = html || `<li class="prs-empty">${T.noBranches}</li>`;
+
+        const vb = visibleBranches();
+        $('#prs-co-count').textContent = `${S.co.size} / ${D.companies.length}`;
+        $('#prs-br-count').textContent = `${S.br.size} / ${vb.length}`;
+        setTri($('#prs-co-all'), S.co.size, D.companies.length);
+        setTri($('#prs-br-all'), vb.filter(b => S.br.has(b.id)).length, vb.length);
+
+        const chips = [];
+        S.co.forEach(id => chips.push(`<span class="prs-chip scope"><i class="fa-solid fa-building"></i><span>${esc(coName(id))}</span><button type="button" data-rmco="${id}" aria-label="${T.remove}"><i class="fa-solid fa-xmark"></i></button></span>`));
+        S.br.forEach(id => { const b = D.branches.find(x => x.id === id); if (b) chips.push(`<span class="prs-chip scope"><i class="fa-solid fa-location-dot"></i><span>${esc(b.name)}</span><button type="button" data-rmbr="${id}" aria-label="${T.remove}"><i class="fa-solid fa-xmark"></i></button></span>`); });
+        $('#prs-scope-chips').innerHTML = chips.length ? chips.join('') : `<div class="prs-hint"><i class="fa-solid fa-circle-info"></i>${T.scopeAll}</div>`;
+
+        $('#prs-hidden-scope').innerHTML =
+            [...S.co].map(id => `<input type="hidden" name="CompanyIds" value="${id}">`).join('') +
+            [...S.br].map(id => `<input type="hidden" name="BranchIds" value="${id}">`).join('');
+    }
+    function dropBranchesOf(coId) { D.branches.forEach(b => { if (b.co === coId) S.br.delete(b.id); }); }
+
+    $('#prs-co-list').addEventListener('click', e => {
+        const li = e.target.closest('[data-co]'); if (!li) return;
+        const id = +li.dataset.co;
+        if (S.co.has(id)) { S.co.delete(id); dropBranchesOf(id); } else S.co.add(id);
+        update();
+    });
+    $('#prs-br-list').addEventListener('click', e => {
+        const li = e.target.closest('[data-br]'); if (!li) return;
+        const id = +li.dataset.br; S.br.has(id) ? S.br.delete(id) : S.br.add(id); update();
+    });
+    $('#prs-scope-chips').addEventListener('click', e => {
+        const b = e.target.closest('button'); if (!b) return;
+        if (b.dataset.rmco) { S.co.delete(+b.dataset.rmco); dropBranchesOf(+b.dataset.rmco); }
+        if (b.dataset.rmbr) S.br.delete(+b.dataset.rmbr);
+        update();
+    });
+    $('#prs-co-all').addEventListener('change', e => { S.co = e.target.checked ? new Set(D.companies.map(c => c.id)) : new Set(); if (!e.target.checked) S.br.clear(); update(); });
+    $('#prs-br-all').addEventListener('change', e => { visibleBranches().forEach(b => e.target.checked ? S.br.add(b.id) : S.br.delete(b.id)); update(); });
+    $('#prs-scope-clear').addEventListener('click', () => { S.co.clear(); S.br.clear(); update(); });
+    $('#prs-co-q').addEventListener('input', renderScope);
+    $('#prs-br-q').addEventListener('input', renderScope);
+
+    /* ───────── filters ───────── */
+    const statusLabels = {}; $$('[data-seg="status"] button').forEach(b => statusLabels[b.dataset.v] = b.textContent.trim());
+    function activeFilters() {
+        const list = [];
+        if (S.status) list.push({ k: 'Status', n: T.status, v: statusLabels[S.status] });
+        $$('#prs-filters [name]').forEach(el => {
+            if (!el.value) return;
+            const v = el.tagName === 'SELECT' ? el.options[el.selectedIndex].text : el.value;
+            list.push({ k: el.name, n: el.dataset.label, v });
+        });
+        return list;
+    }
+    function renderFilters() {
+        const f = activeFilters();
+        const badge = $('#prs-f-count'); badge.hidden = !f.length; badge.textContent = `${f.length} ${T.active}`;
+        $('#prs-active').innerHTML = f.length
+            ? `<span class="prs-label">${T.activeFilters}</span>` + f.map(x => `<span class="prs-chip"><span>${esc(x.n)}: <b>${esc(x.v)}</b></span><button type="button" data-rmf="${x.k}" aria-label="${T.remove}"><i class="fa-solid fa-xmark"></i></button></span>`).join('') + `<button type="button" class="prs-link" data-rmf="*" style="margin-inline-start:auto">${T.clearAll}</button>`
+            : `<span style="color:var(--prs-muted)">${T.noFilters}</span>`;
+        return f;
+    }
+    function setStatus(v) { S.status = v; $('#prs-status').value = v; setSeg('status', v); }
+    function resetFilters() { $$('#prs-filters [name]').forEach(el => el.value = ''); setStatus(''); }
+    $('#prs-filters').addEventListener('input', debouncedUpdate);
+    $('#prs-filters').addEventListener('change', update);
+    $('#prs-f-reset').addEventListener('click', () => { resetFilters(); update(); });
+    $('#prs-active').addEventListener('click', e => {
+        const b = e.target.closest('[data-rmf]'); if (!b) return;
+        const k = b.dataset.rmf;
+        if (k === '*') resetFilters();
+        else if (k === 'Status') setStatus('');
+        else { const el = form.querySelector(`#prs-filters [name="${k}"]`); if (el) el.value = ''; }
+        update();
+    });
+
+    /* ───────── segmented controls ───────── */
+    function setSeg(name, v) { $$(`[data-seg="${name}"] button`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); }
+    document.addEventListener('click', e => {
+        const b = e.target.closest('[data-seg] button'); if (!b) return;
+        const name = b.parentNode.dataset.seg, v = b.dataset.v;
+        setSeg(name, v);
+        if (name === 'preset') { if (v !== 'custom') S.cols = presets[v].slice(); }
+        else if (name === 'status') setStatus(v);
+        else if (name === 'orient') { S.orient = v; $('#prs-orientation').value = v; }
+        update();
+    });
+
+    /* ───────── columns ───────── */
+    function renderCols() {
+        const q = $('#prs-col-q').value.trim().toLowerCase();
+        $('#prs-groups').innerHTML = D.groups.map(g => {
+            const cols = g.cols.filter(c => !q || c.label.toLowerCase().includes(q) || c.key.toLowerCase().includes(q));
+            if (!cols.length) return '';
+            const on = g.cols.filter(c => S.cols.includes(c.key)).length;
+            const closed = S.closed.has(g.id) && !q;
+            return `<div class="prs-group${closed ? ' closed' : ''}" data-g="${g.id}" style="--sec:${g.color}">
+                <div class="prs-group-head"><input type="checkbox" class="prs-check" data-gall="${g.id}"${on === g.cols.length ? ' checked' : ''}><h5>${esc(g.name)}</h5><span class="prs-badge${on ? ' soft' : ''} num">${on} / ${g.cols.length}</span><i class="fa-solid fa-chevron-down chev"></i></div>
+                <div class="prs-colgrid">${cols.map(c => `<label class="prs-colitem"><input type="checkbox" class="prs-check" data-col="${c.key}"${S.cols.includes(c.key) ? ' checked' : ''}><span class="t"><span>${esc(c.label)}</span><span class="mono">${c.key}</span></span></label>`).join('')}</div>
+            </div>`;
+        }).join('') || `<div class="prs-empty">${T.noColFound}</div>`;
+        D.groups.forEach(g => {
+            const el = document.querySelector(`[data-gall="${g.id}"]`); if (!el) return;
+            const on = g.cols.filter(c => S.cols.includes(c.key)).length;
+            el.indeterminate = on > 0 && on < g.cols.length;
+        });
+        $('#prs-order').innerHTML = S.cols.map(k => `<li draggable="true" data-k="${k}"><i class="fa-solid fa-grip-vertical grip"></i><span>${esc(label[k])}</span><button type="button" data-rmc="${k}" aria-label="${T.remove}"><i class="fa-solid fa-xmark"></i></button></li>`).join('')
+            || `<li class="prs-empty" style="display:block">${T.noCols}</li>`;
+        $('#prs-ord-count').textContent = S.cols.length;
+        $('#prs-col-count').textContent = `${S.cols.length} / ${allKeys.length}`;
+        $('#prs-hidden-cols').innerHTML = S.cols.map(k => `<input type="hidden" name="Columns" value="${k}">`).join('');
+    }
+    const toCustom = () => setSeg('preset', 'custom');
+    $('#prs-groups').addEventListener('change', e => {
+        const t = e.target;
+        if (t.dataset.col) { const k = t.dataset.col, i = S.cols.indexOf(k); if (t.checked && i < 0) S.cols.push(k); if (!t.checked && i > -1) S.cols.splice(i, 1); }
+        if (t.dataset.gall) {
+            const g = D.groups.find(x => x.id === t.dataset.gall);
+            g.cols.forEach(c => { const i = S.cols.indexOf(c.key); if (t.checked && i < 0) S.cols.push(c.key); if (!t.checked && i > -1) S.cols.splice(i, 1); });
+        }
+        toCustom(); update();
+    });
+    $('#prs-groups').addEventListener('click', e => {
+        const h = e.target.closest('.prs-group-head'); if (!h || e.target.matches('input')) return;
+        const id = h.parentNode.dataset.g; S.closed.has(id) ? S.closed.delete(id) : S.closed.add(id); renderCols();
+    });
+    $('#prs-order').addEventListener('click', e => { const b = e.target.closest('[data-rmc]'); if (!b) return; S.cols.splice(S.cols.indexOf(b.dataset.rmc), 1); toCustom(); update(); });
+    let drag = null;
+    $('#prs-order').addEventListener('dragstart', e => { drag = e.target.closest('li'); if (!drag) return; drag.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    $('#prs-order').addEventListener('dragover', e => {
+        e.preventDefault(); const li = e.target.closest('li[data-k]'); if (!li || !drag || li === drag) return;
+        const r = li.getBoundingClientRect(); li.parentNode.insertBefore(drag, e.clientY > r.top + r.height / 2 ? li.nextSibling : li);
+    });
+    $('#prs-order').addEventListener('dragend', () => { if (!drag) return; drag.classList.remove('dragging'); drag = null; S.cols = $$('#prs-order li[data-k]').map(li => li.dataset.k); toCustom(); update(); });
+    $('#prs-col-q').addEventListener('input', renderCols);
+    $('#prs-col-all').addEventListener('click', () => { S.cols = presets.all.slice(); setSeg('preset', 'all'); update(); });
+    $('#prs-col-none').addEventListener('click', () => { S.cols = []; toCustom(); update(); });
+    $('#prs-col-fold').addEventListener('click', e => {
+        const allClosed = S.closed.size === D.groups.length;
+        S.closed = allClosed ? new Set() : new Set(D.groups.map(g => g.id));
+        e.target.textContent = allClosed ? T.collapse : T.expand; renderCols();
+    });
+
+    /* ───────── preview (live data from the server) ───────── */
+    function renderPreview(f) {
+        const landscape = S.orient === 'landscape', max = landscape ? 9 : 5;
+        const withNum = $('#prs-rownum').checked;
+        const keys = S.cols, shown = keys.slice(0, max), rest = keys.length - shown.length;
+        $('#prs-sheet').classList.toggle('portrait', !landscape);
+        $('#prs-sh-head').innerHTML = '<tr>' + (withNum ? '<th class="n">#</th>' : '') + shown.map(k => `<th>${esc(label[k])}</th>`).join('') + (rest > 0 ? `<th class="more">+${rest}</th>` : '') + '</tr>';
+
+        let body;
+        const span = shown.length + (withNum ? 1 : 0) + (rest > 0 ? 1 : 0);
+        if (!keys.length) body = `<tr class="empty"><td colspan="${span || 1}">${T.pickCol}</td></tr>`;
+        else if (summary && summary.count === 0) body = `<tr class="empty"><td colspan="${span}">${T.noEmp}</td></tr>`;
+        else if (summary) {
+            const idx = shown.map(k => summary.keys.indexOf(k));
+            body = summary.rows.slice(0, landscape ? 8 : 10).map((r, i) => '<tr>' + (withNum ? `<td class="n">${i + 1}</td>` : '') +
+                idx.map((j, c) => { const v = j > -1 ? r[j] : ''; return `<td${/Code|Id$|Number|Iban|Phone|Email/.test(shown[c]) ? ' class="ltr"' : ''}>${esc(v || '—')}</td>`; }).join('') +
+                (rest > 0 ? '<td class="more">…</td>' : '') + '</tr>').join('');
+        } else body = '';
+        $('#prs-sh-body').innerHTML = body;
+
+        $('#prs-sh-scope').textContent = S.br.size ? [...S.br].map(id => (D.branches.find(b => b.id === id) || {}).name).join('، ')
+            : S.co.size ? [...S.co].map(coName).join('، ') : T.scopeAllShort;
+        const showF = $('#prs-showf').checked && f.length;
+        $('#prs-sh-filters').hidden = !showF;
+        $('#prs-sh-filters').innerHTML = f.map(x => `<span>${esc(x.n)}: <b>${esc(x.v)}</b></span>`).join('');
+
+        const w = $('#prs-warn'); w.hidden = rest <= 0;
+        if (rest > 0) w.querySelector('span').textContent = T.warn.replace('{n}', keys.length).replace('{o}', landscape ? T.land : T.port).replace('{m}', max);
+    }
+
+    function renderStats(f) {
+        const emp = summary ? summary.count : D.total;
+        const pages = S.cols.length ? Math.max(1, Math.ceil(emp / (S.orient === 'landscape' ? 22 : 34))) : 0;
+        $('#prs-s-emp').textContent = emp;
+        $('#prs-s-col').textContent = S.cols.length;
+        $('#prs-s-pg').textContent = pages;
+        $('#prs-k-co').textContent = S.co.size ? `${S.co.size} ${T.selected}` : T.all;
+        $('#prs-k-br').textContent = S.br.size ? `${S.br.size} ${T.selected}` : T.all;
+        $('#prs-k-f').textContent = f.length || T.none;
+        $('#prs-sh-total').textContent = `${T.total}: ${emp}`;
+        $('#prs-sh-page').textContent = `${T.page} ${pages || 1}`;
+        $('#prs-st1').classList.toggle('done', S.co.size + S.br.size > 0);
+        $('#prs-st2').classList.toggle('done', f.length > 0);
+        $('#prs-st3').classList.toggle('done', S.cols.length > 0);
+        $$('.prs-export button, #prs-review').forEach(b => b.disabled = !S.cols.length);
+    }
+
+    let seq = 0, timer = null;
+    async function fetchSummary() {
+        if (!S.cols.length) { summary = null; return; }
+        const my = ++seq;
+        $('#prs-stats').classList.add('loading');
+        try {
+            const res = await fetch(D.summaryUrl, { method: 'POST', body: new FormData(form), headers: { 'X-Requested-With': 'fetch' } });
+            if (!res.ok) throw new Error(res.status);
+            const data = await res.json();
+            if (my !== seq) return;          // a newer request is on its way
+            summary = data;
+        } catch (err) { console.warn('[print-roster] summary failed', err); }
+        finally { if (my === seq) $('#prs-stats').classList.remove('loading'); }
+        const f = activeFilters(); renderPreview(f); renderStats(f);
+    }
+
+    function update() {
+        const f = renderFilters();
+        renderScope(); renderCols(); renderPreview(f); renderStats(f);
+        clearTimeout(timer); timer = setTimeout(fetchSummary, 250);
+    }
+    function debouncedUpdate() { clearTimeout(timer); timer = setTimeout(update, 350); }
+    $('#prs-rownum').addEventListener('change', update);
+    $('#prs-showf').addEventListener('change', update);
+
+    /* ───────── exports ───────── */
+    $('#prs-print').addEventListener('click', () => { $('#prs-autoprint').value = 'true'; setTimeout(() => $('#prs-autoprint').value = 'false', 500); });
+    $$('[data-export]').forEach(b => b.addEventListener('click', () => toast(T.preparing)));
+
+    /* ───────── templates (saved per browser) ───────── */
+    const TPL_KEY = 'hr.printRoster.templates.v1';
+    const builtIn = {
+        'b:basic':   { name: T.tplBasic, cols: presets.basic },
+        'b:iqama':   { name: T.tplIqama, cols: presets.docs, filters: { Nationality: 'NON_SA', DocExpiryDays: '30' } },
+        'b:payroll': { name: T.tplPayroll, cols: presets.pay, status: 'active' },
+        'b:job':     { name: T.tplJob, cols: presets.job, status: 'active' },
+    };
+    function readMine() { try { return JSON.parse(localStorage.getItem(TPL_KEY) || '{}'); } catch { return {}; } }
+    function writeMine(v) { try { localStorage.setItem(TPL_KEY, JSON.stringify(v)); } catch { } }
+    function renderTpl() {
+        const mine = readMine();
+        $('#prs-tpl').innerHTML = `<option value="">${T.tplPlaceholder}</option>` +
+            `<optgroup label="${T.tplBuiltIn}">` + Object.entries(builtIn).map(([k, t]) => `<option value="${k}">${esc(t.name)}</option>`).join('') + '</optgroup>' +
+            (Object.keys(mine).length ? `<optgroup label="${T.tplMine}">` + Object.keys(mine).map(n => `<option value="m:${esc(n)}">${esc(n)}</option>`).join('') + `<option value="del">— ${T.tplDelete}</option></optgroup>` : '');
+    }
+    function snapshot() {
+        const filters = {}; $$('#prs-filters [name]').forEach(el => { if (el.value) filters[el.name] = el.value; });
+        return { co: [...S.co], br: [...S.br], cols: S.cols.slice(), status: S.status, orient: S.orient, filters, rownum: $('#prs-rownum').checked, showf: $('#prs-showf').checked };
+    }
+    function apply(t) {
+        resetFilters();
+        if (t.co) { S.co = new Set(t.co.filter(id => D.companies.some(c => c.id === id))); }
+        if (t.br) { S.br = new Set(t.br.filter(id => D.branches.some(b => b.id === id))); }
+        S.cols = (t.cols || presets.basic).filter(k => label[k]);
+        setStatus(t.status || '');
+        Object.entries(t.filters || {}).forEach(([k, v]) => { const el = form.querySelector(`#prs-filters [name="${k}"]`); if (el) el.value = v; });
+        if (t.orient) { S.orient = t.orient; $('#prs-orientation').value = t.orient; setSeg('orient', t.orient); }
+        if (typeof t.rownum === 'boolean') $('#prs-rownum').checked = t.rownum;
+        if (typeof t.showf === 'boolean') $('#prs-showf').checked = t.showf;
+        toCustom(); update();
+    }
+    let lastTpl = '';
+    $('#prs-tpl').addEventListener('change', e => {
+        const v = e.target.value;
+        if (v === 'del') {
+            const mine = readMine(); if (lastTpl.startsWith('m:')) { delete mine[lastTpl.slice(2)]; writeMine(mine); toast(T.tplDeleted); }
+            renderTpl(); return;
+        }
+        lastTpl = v;
+        if (v.startsWith('b:')) apply(builtIn[v]);
+        else if (v.startsWith('m:')) apply(readMine()[v.slice(2)] || {});
+        if (v) toast(T.tplApplied);
+    });
+    $('#prs-tpl-save').addEventListener('click', () => {
+        const name = (prompt(T.tplName) || '').trim(); if (!name) return;
+        const mine = readMine(); mine[name] = snapshot(); writeMine(mine); renderTpl();
+        $('#prs-tpl').value = 'm:' + name; lastTpl = 'm:' + name; toast(T.tplSaved);
+    });
+
+    let tt; function toast(msg) { const t = $('#prs-toast'); t.querySelector('span').textContent = msg; t.classList.add('show'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2000); }
+
+    renderTpl();
+    setSeg('preset', 'basic');
+    update();
+})();
+</script>
+}

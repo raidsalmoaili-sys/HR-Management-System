@@ -1,0 +1,26 @@
+@* Employee status pill. Clickable (opens _StatusModal) when ViewData["canEdit"] is true.
+   Usage: <partial name="_StatusBadge" model="e" view-data='new ViewDataDictionary(ViewData) { ["canEdit"] = Model.CanEditStatus }' /> *@
+@model Project_HR_1.Models.Hr.Employee
+@using Project_HR_1.Models.Hr
+@{
+    var st = EmployeeStatuses.Get(Model.Status);
+    var canEdit = ViewData["canEdit"] as bool? == true;
+    var label = L.L(st.NameAr, st.NameEn);
+}
+@if (canEdit)
+{
+    var payload = System.Text.Json.JsonSerializer.Serialize(new
+    {
+        id = Model.Id,
+        name = L.L(Model.NameAr, Model.NameEn),
+        status = Model.Status,
+        lastDay = Model.LastWorkDate?.ToString("yyyy-MM-dd"),
+    });
+    <button type="button" class="st-pill @st.Badge st-badge-btn" data-status-edit="@payload" title="@L.L("تغيير الحالة", "Change status")">
+        <i class="fa-solid @st.Icon"></i>@label<i class="fa-solid fa-pen"></i>
+    </button>
+}
+else
+{
+    <span class="st-pill @st.Badge"><i class="fa-solid @st.Icon"></i>@label</span>
+}

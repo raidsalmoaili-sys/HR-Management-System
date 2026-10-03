@@ -1,0 +1,151 @@
+@model Project_HR_1.Models.ViewModels.Modules.ContractsListVM
+@using Project_HR_1.Models.Hr.Modules
+@using Project_HR_1.Services.HrModules
+@{
+    ViewData["Title"] = L.L("العقود", "Contracts");
+    var today = DateOnly.FromDateTime(DateTime.Today);
+    var tabs = new (string? Code, string Ar, string En)[] { (null, "الكل", "All"), (ContractStatuses.Active, "سارية", "Active"), (ContractStatuses.Renewed, "مُجدَّدة", "Renewed"), (ContractStatuses.Terminated, "مُنهاة", "Terminated") };
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("عقود العمل", "Employment Contracts")</h2>
+        <div class="sub">@L.L("إصدار العقود وتجديدها وإنهاؤها وطباعتها، مع تنبيه قبل الانتهاء بـ 60 يوماً", "Issue, renew, terminate and print contracts — alerts 60 days before expiry")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.Perms.CanCreate)
+        {
+            <a class="btn btn-accent btn-sm" asp-action="Form"><i class="fa-solid fa-file-signature me-1"></i>@L.L("عقد جديد", "New contract")</a>
+        }
+    </div>
+</div>
+
+<partial name="_ModuleFlash" />
+
+<div class="stats-grid">
+    <div class="stat-card" style="--stat-color:#16a34a"><div class="stat-icon"><i class="fa-solid fa-file-contract"></i></div><div class="stat-info"><h3>@Model.ActiveCount</h3><p>@L.L("عقود سارية", "Active contracts")</p></div></div>
+    <a class="stat-card" style="--stat-color:#f59e0b" asp-action="Index" asp-route-expiring="true"><div class="stat-icon"><i class="fa-solid fa-bell"></i></div><div class="stat-info"><h3>@Model.Expiring60</h3><p>@L.L("تنتهي خلال 60 يوماً", "Expiring in 60 days")</p></div></a>
+    <div class="stat-card" style="--stat-color:#dc2626"><div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div><div class="stat-info"><h3>@Model.Expired</h3><p>@L.L("منتهية لم تُجدد", "Expired, not renewed")</p></div></div>
+    <div class="stat-card" style="--stat-color:#64748b"><div class="stat-icon"><i class="fa-solid fa-user-slash"></i></div><div class="stat-info"><h3>@Model.WithoutContract</h3><p>@L.L("موظفون بلا عقد ساري", "Employees without a contract")</p></div></div>
+</div>
+
+<div class="hm-tabs">
+    @foreach (var t in tabs)
+    {
+        <a class="hm-tab @(Model.Status == t.Code && !Model.ExpiringOnly ? "active" : "")" asp-action="Index" asp-route-status="@t.Code" asp-route-q="@Model.Search">@L.L(t.Ar, t.En)</a>
+    }
+    <a class="hm-tab @(Model.ExpiringOnly ? "active" : "")" asp-action="Index" asp-route-expiring="true"><i class="fa-solid fa-bell fa-xs"></i> @L.L("قاربت على الانتهاء", "Expiring soon")</a>
+</div>
+
+<div class="data-card">
+    <form method="get" class="filter-bar">
+        <input type="hidden" name="status" value="@Model.Status" />
+        <input type="hidden" name="expiring" value="@(Model.ExpiringOnly ? "true" : "false")" />
+        <input type="search" name="q" value="@Model.Search" class="select-box" placeholder="@L.L("رقم العقد أو اسم الموظف", "Contract no. or employee")" />
+        <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <span class="hm-spacer"></span>
+        <span class="text-xs text-muted">@Model.Contracts.Count @L.L("عقد", "contracts")</span>
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("رقم العقد", "No.")</th>
+                    <th>@L.L("الموظف", "Employee")</th>
+                    <th>@L.L("النوع", "Type")</th>
+                    <th>@L.L("البداية", "Start")</th>
+                    <th>@L.L("النهاية", "End")</th>
+                    <th class="hm-right">@L.L("إجمالي الراتب", "Total salary")</th>
+                    <th>@L.L("الحالة", "Status")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Contracts.Count == 0)
+            {
+                <tr class="empty"><td colspan="8">@L.L("لا توجد عقود", "No contracts.")</td></tr>
+            }
+            @foreach (var c in Model.Contracts)
+            {
+                var st = ContractStatuses.Get(c.Status);
+                int? left = c.EndDate.HasValue ? c.EndDate.Value.DayNumber - today.DayNumber : null;
+                <tr>
+                    <td class="hm-num font-semibold">@c.ContractNumber</td>
+                    <td>
+                        <div class="font-semibold">@(c.Employee != null ? L.L(c.Employee.NameAr, c.Employee.NameEn) : "—")</div>
+                        <div class="hm-small hm-muted">@c.JobTitleAr · @(c.Employee?.Branch != null ? L.L(c.Employee.Branch.NameAr, c.Employee.Branch.NameEn) : "")</div>
+                    </td>
+                    <td>@(c.ContractType == ContractType.Limited ? L.L("محدد المدة", "Fixed-term") : L.L("غير محدد المدة", "Open-ended"))</td>
+                    <td class="hm-num">@c.StartDate.ToString("yyyy/MM/dd")</td>
+                    <td>
+                        @if (c.EndDate.HasValue)
+                        {
+                            <span class="hm-num">@c.EndDate.Value.ToString("yyyy/MM/dd")</span>
+                            @if (c.Status == ContractStatuses.Active && left < 0) { <div><span class="badge badge-danger">@L.L("منتهٍ", "Expired")</span></div> }
+                            else if (c.Status == ContractStatuses.Active && left <= ContractsExpiry) { <div><span class="badge badge-warning">@L.L($"باقي {left} يوم", $"{left} days left")</span></div> }
+                        }
+                        else { <span class="hm-muted">—</span> }
+                    </td>
+                    <td class="hm-right hm-num hm-strong">@HrCalendar.Money(c.TotalSalary)</td>
+                    <td><span class="badge badge-@st.Badge">@L.L(st.Ar, st.En)</span></td>
+                    <td class="text-end hm-nowrap">
+                        <a class="icon-btn" asp-action="Print" asp-route-id="@c.Id" target="_blank" title="@L.L("طباعة", "Print")"><i class="fa-solid fa-print"></i></a>
+                        @if (c.Status == ContractStatuses.Active)
+                        {
+                            @if (Model.Perms.CanCreate) { <a class="icon-btn" asp-action="Form" asp-route-renewFrom="@c.Id" title="@L.L("تجديد", "Renew")" style="color:#16a34a"><i class="fa-solid fa-rotate"></i></a> }
+                            @if (Model.Perms.CanEdit)
+                            {
+                                <a class="icon-btn" asp-action="Form" asp-route-id="@c.Id" title="@L.L("تعديل", "Edit")"><i class="fa-solid fa-pen"></i></a>
+                                <button type="button" class="icon-btn icon-btn-danger" data-modal-open="modal-term-@c.Id" title="@L.L("إنهاء", "Terminate")"><i class="fa-solid fa-file-circle-xmark"></i></button>
+                            }
+                        }
+                        @if (Model.Perms.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@c.Id" method="post" class="inline" onsubmit="return confirm('@L.L("حذف العقد نهائياً؟", "Delete this contract?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger" title="@L.L("حذف", "Delete")"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Perms.CanEdit)
+{
+    foreach (var c in Model.Contracts.Where(x => x.Status == ContractStatuses.Active))
+    {
+        <dialog id="modal-term-@c.Id" class="modal">
+            <form method="post" asp-action="Terminate" asp-route-id="@c.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-file-circle-xmark"></i></span><span class="mm-txt"><small>@c.ContractNumber</small>@L.L("إنهاء العقد", "Terminate contract")</span></span>
+                    <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="hm-form">
+                        <div>
+                            <label class="auth-label">@L.L("تاريخ الإنهاء", "Termination date")</label>
+                            <input type="date" name="date" value="@today.ToString("yyyy-MM-dd")" class="auth-input" />
+                        </div>
+                        <div>
+                            <label class="auth-label">@L.L("السبب", "Reason")</label>
+                            <textarea name="reason" class="auth-input" rows="2" maxlength="500"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="btn btn-danger">@L.L("إنهاء العقد", "Terminate")</button>
+                </div>
+            </form>
+        </dialog>
+    }
+}
+
+@functions {
+    private const int ContractsExpiry = Project_HR_1.Controllers.ContractsController.ExpiryWarningDays;
+}

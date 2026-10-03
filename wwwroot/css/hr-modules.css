@@ -1,0 +1,94 @@
+/* HR business modules (attendance · leaves · payroll · contracts · advances · dashboard).
+   Plain CSS on purpose so the pages render correctly even before `npm run css:build`. */
+
+.hm-flash { display:flex; align-items:center; gap:.6rem; padding:.75rem 1rem; border-radius:12px; margin-bottom:1rem; font-size:.875rem; font-weight:600; }
+.hm-flash.ok  { background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
+.hm-flash.err { background:#fef2f2; color:#991b1b; border:1px solid #fecaca; }
+
+.hm-tabs { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:1rem; }
+.hm-tab { padding:.45rem .9rem; border-radius:999px; font-size:.8rem; font-weight:700; background:#fff; border:1px solid #e2e8f0; color:#475569; text-decoration:none; }
+.hm-tab.active { background:var(--hr-primary,#1a2744); border-color:var(--hr-primary,#1a2744); color:#fff; }
+
+.hm-grid { display:grid; gap:1rem; grid-template-columns:1fr; }
+@media (min-width: 1024px) {
+  .hm-grid.cols-2 { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .hm-grid.cols-3 { grid-template-columns:repeat(3, minmax(0,1fr)); }
+  .hm-span-2 { grid-column: span 2 / span 2; }
+}
+.hm-pad { padding:1rem 1.25rem; }
+.hm-muted { color:#7f8c9a; }
+.hm-small { font-size:.75rem; }
+.hm-num { font-variant-numeric: tabular-nums; direction:ltr; unicode-bidi:isolate; }
+.hm-strong { font-weight:800; }
+.hm-right { text-align:end; }
+.hm-center { text-align:center; }
+.hm-nowrap { white-space:nowrap; }
+.hm-inline { display:inline; }
+.hm-row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.hm-spacer { flex:1; }
+
+/* form grid inside modals / pages */
+.hm-form { display:grid; gap:.85rem; grid-template-columns:1fr; }
+@media (min-width: 640px) { .hm-form.two { grid-template-columns:repeat(2, minmax(0,1fr)); } .hm-form .full { grid-column:1 / -1; } }
+.hm-form .auth-input, .hm-form select.auth-input, .hm-form textarea.auth-input { width:100%; }
+.hm-section-title { font-size:.8rem; font-weight:800; color:var(--hr-primary,#1a2744); margin:.5rem 0 .1rem; grid-column:1/-1; border-bottom:1px dashed #e2e8f0; padding-bottom:.3rem; }
+.hm-hint { font-size:.72rem; color:#7f8c9a; margin-top:.2rem; }
+
+/* compact inputs inside tables */
+.hm-cell-input { width:100%; min-width:5.5rem; padding:.3rem .45rem; border:1px solid #e2e8f0; border-radius:8px; font-size:.8rem; background:#fff; }
+.hm-cell-input:focus { outline:2px solid var(--hr-accent,#c8a84b); outline-offset:0; }
+select.hm-cell-input { min-width:7.5rem; }
+.hm-time { min-width:6.2rem; direction:ltr; }
+
+/* status pills in the attendance sheet */
+.hm-status-row[data-status="absent"]  { background:#fff7f7; }
+.hm-status-row[data-status="late"]    { background:#fffbeb; }
+.hm-status-row[data-status="leave"],
+.hm-status-row[data-status="holiday"] { background:#f8fafc; }
+
+/* monthly matrix */
+.hm-matrix { border-collapse:separate; border-spacing:2px; font-size:.7rem; }
+.hm-matrix th { font-weight:700; color:#64748b; padding:.2rem; text-align:center; }
+.hm-matrix td { padding:0; text-align:center; }
+.hm-matrix .nm { text-align:start; padding:.25rem .5rem; white-space:nowrap; font-weight:600; font-size:.78rem; position:sticky; inset-inline-start:0; background:#fff; z-index:1; }
+.hm-dot { display:inline-flex; width:1.35rem; height:1.35rem; border-radius:6px; align-items:center; justify-content:center; font-weight:800; font-size:.62rem; color:#fff; }
+.hm-dot.present { background:#16a34a; } .hm-dot.late { background:#f59e0b; } .hm-dot.absent { background:#dc2626; }
+.hm-dot.leave { background:#3b82f6; } .hm-dot.remote { background:#0ea5e9; } .hm-dot.holiday { background:#cbd5e1; color:#475569; }
+.hm-dot.none { background:#f1f5f9; color:#cbd5e1; }
+.hm-legend { display:flex; gap:.8rem; flex-wrap:wrap; font-size:.75rem; color:#475569; }
+.hm-legend span { display:inline-flex; align-items:center; gap:.3rem; }
+
+/* bars (dashboard + breakdowns) */
+.hm-bars { display:flex; flex-direction:column; gap:.6rem; }
+.hm-bar-row { display:grid; grid-template-columns: minmax(6rem, 9rem) 1fr auto; align-items:center; gap:.6rem; font-size:.8rem; }
+.hm-bar-track { height:.6rem; background:#f1f5f9; border-radius:999px; overflow:hidden; }
+.hm-bar-fill { height:100%; border-radius:999px; background:var(--bar, var(--hr-primary,#1a2744)); }
+.hm-cols { display:flex; align-items:flex-end; gap:.5rem; height:150px; padding-top:.5rem; }
+.hm-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:.3rem; height:100%; justify-content:flex-end; }
+.hm-col-bar { width:100%; max-width:42px; border-radius:8px 8px 3px 3px; background:var(--bar, var(--hr-accent,#c8a84b)); min-height:3px; }
+.hm-col-val { font-size:.65rem; font-weight:700; color:#475569; direction:ltr; }
+.hm-col-lbl { font-size:.68rem; color:#7f8c9a; white-space:nowrap; }
+.hm-donut { --p:0; width:120px; height:120px; border-radius:50%; background:conic-gradient(#16a34a calc(var(--p)*1%), #e2e8f0 0); display:grid; place-items:center; flex-shrink:0; }
+.hm-donut > div { width:86px; height:86px; border-radius:50%; background:#fff; display:grid; place-items:center; text-align:center; }
+.hm-donut b { font-size:1.25rem; color:#1a2744; } .hm-donut small { display:block; font-size:.62rem; color:#7f8c9a; }
+
+/* lists */
+.hm-list { list-style:none; margin:0; padding:0; }
+.hm-list li { display:flex; align-items:center; gap:.7rem; padding:.65rem 1.25rem; border-top:1px solid #f1f5f9; font-size:.82rem; }
+.hm-list li:first-child { border-top:0; }
+.hm-avatar { width:2rem; height:2rem; border-radius:10px; display:grid; place-items:center; font-weight:800; font-size:.7rem; color:#fff; background:var(--hr-primary,#1a2744); flex-shrink:0; }
+
+/* summary strip (payroll totals) */
+.hm-summary { display:grid; gap:.75rem; grid-template-columns:repeat(2, minmax(0,1fr)); }
+@media (min-width: 1024px) { .hm-summary { grid-template-columns:repeat(5, minmax(0,1fr)); } }
+.hm-summary > div { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:.8rem 1rem; }
+.hm-summary small { display:block; font-size:.7rem; color:#7f8c9a; font-weight:700; }
+.hm-summary b { font-size:1.15rem; color:#1a2744; }
+.hm-summary .net b { color:#15803d; }
+.hm-summary .ded b { color:#b91c1c; }
+
+.hm-progress { height:.4rem; background:#f1f5f9; border-radius:999px; overflow:hidden; min-width:5rem; }
+.hm-progress > i { display:block; height:100%; background:#16a34a; }
+
+.hm-tfoot td { font-weight:800; background:#f8fafc; }
+.hm-note { background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; padding:.75rem 1rem; font-size:.78rem; color:#475569; }

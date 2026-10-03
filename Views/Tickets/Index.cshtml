@@ -1,0 +1,76 @@
+@model Project_HR_1.Models.ViewModels.Management.TicketsListVM
+@using Project_HR_1.Models.Hr.Support
+@{ ViewData["Title"] = "Support Tickets"; }
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("تذاكر الدعم", "Support Tickets")</h2>
+        <div class="sub">@L.L("إدارة تذاكر الدعم الفني", "Manage support tickets")</div>
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-headset"></i>@L.L("التذاكر", "Tickets")</div>
+        <span class="text-xs text-muted">@Model.Tickets.Count @L.L("سجل", "rows")</span>
+    </div>
+    <form method="get" class="filter-bar">
+        <div class="search">
+            <input type="text" name="q" placeholder="@L.L("بحث…", "Search…")" disabled />
+            <i class="fa-solid fa-magnifying-glass"></i>
+        </div>
+        <select name="status" class="select-box" onchange="this.form.submit()">
+            <option value="">@L.L("كل الحالات", "All statuses")</option>
+            @foreach (var s in Enum.GetValues<TicketStatus>())
+            {
+                var sel = Model.StatusFilter == s ? "selected" : null;
+                <option value="@s" selected="@sel">@s</option>
+            }
+        </select>
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الرمز", "Code")</th>
+                    <th>@L.L("الموضوع", "Subject")</th>
+                    <th>@L.L("الأولوية", "Priority")</th>
+                    <th>@L.L("الحالة", "Status")</th>
+                    <th>@L.L("التاريخ", "Created")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Tickets.Count == 0)
+            {
+                <tr class="empty"><td colspan="6">@L.L("لا توجد تذاكر", "No tickets.")</td></tr>
+            }
+            @foreach (var t in Model.Tickets)
+            {
+                var priorityKind = t.Priority switch {
+                    TicketPriority.Urgent => "badge-danger",
+                    TicketPriority.High   => "badge-warning",
+                    TicketPriority.Normal => "badge-info",
+                    _                     => "badge-muted"
+                };
+                var statusKind = t.Status switch {
+                    TicketStatus.Open       => "badge-warning",
+                    TicketStatus.InProgress => "badge-info",
+                    TicketStatus.Resolved   => "badge-success",
+                    _                       => "badge-muted"
+                };
+                <tr>
+                    <td class="text-muted text-xs">@t.TicketCode</td>
+                    <td><div class="font-semibold">@t.Subject</div></td>
+                    <td><span class="badge @priorityKind">@t.Priority</span></td>
+                    <td><span class="badge @statusKind">@t.Status</span></td>
+                    <td class="text-muted text-xs">@t.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td class="text-end">
+                        <a asp-action="Detail" asp-route-id="@t.Id" class="icon-btn" title="@L.L("فتح", "Open")"><i class="fa-solid fa-eye"></i></a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

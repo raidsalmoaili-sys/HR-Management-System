@@ -1,0 +1,295 @@
+@* Login account card + dialogs on Employees/Detail (docs/features/employee-login-account.md).
+   No account → "إنشاء حساب دخول". Has account → shows the email + "تغيير كلمة المرور".
+   Styles are plain CSS (la- prefix) so the dialog looks right even before Tailwind is rebuilt. *@
+@model Project_HR_1.Models.ViewModels.Management.EmployeeDetailVM
+@{
+    var e = Model.Employee;
+    var has = Model.LoginEmail != null || e.UserId != null;
+    var company = e.Company != null ? L.L(e.Company.NameAr, e.Company.NameEn) : null;
+
+    // Shared dialog header (navy hero with the employee's avatar).
+    void Hero(string icon, string title, string dialogId)
+    {
+        <div class="la-hero">
+            <button type="button" class="la-x" data-modal-close aria-label="@L.L("إغلاق", "Close")"><i class="fa-solid fa-xmark"></i></button>
+            <div class="la-avatar" style="background:@(e.AvatarColor ?? "#34495e")">@e.Initials</div>
+            <div class="la-hero-txt">
+                <span class="la-kicker"><i class="fa-solid @icon"></i>@title</span>
+                <strong class="la-who">@L.L(e.NameAr, e.NameEn)</strong>
+                <span class="la-sub">@e.EmployeeCode@(company != null ? " · " + company : "")</span>
+            </div>
+        </div>
+    }
+
+    // Password field + strength meter + rules (used by both dialogs).
+    void PassField(string id, string label)
+    {
+        <div class="la-field">
+            <div class="la-label-row">
+                <label for="@id">@label</label>
+                <button type="button" class="la-gen" data-la-gen="@id"><i class="fa-solid fa-wand-magic-sparkles"></i>@L.L("توليد كلمة مرور قوية", "Generate strong password")</button>
+            </div>
+            <div class="la-input has-end">
+                <i class="fa-solid fa-lock la-ico"></i>
+                <input type="password" name="password" id="@id" dir="ltr" required minlength="8" autocomplete="new-password"
+                       spellcheck="false" data-la-pass placeholder="••••••••" />
+                <div class="la-end">
+                    <button type="button" class="la-icon-btn" data-la-copy="@id" title="@L.L("نسخ", "Copy")" aria-label="@L.L("نسخ", "Copy")"><i class="fa-regular fa-copy"></i></button>
+                    <button type="button" class="la-icon-btn" data-la-eye="@id" aria-pressed="false"
+                            data-show="@L.L("إظهار كلمة المرور", "Show password")" data-hide="@L.L("إخفاء كلمة المرور", "Hide password")"
+                            title="@L.L("إظهار كلمة المرور", "Show password")" aria-label="@L.L("إظهار كلمة المرور", "Show password")"><i class="fa-regular fa-eye"></i></button>
+                </div>
+            </div>
+            <div class="la-meter" data-la-meter="@id"><span></span><span></span><span></span><span></span><em></em></div>
+            <ul class="la-rules" data-la-rules="@id">
+                <li data-rule="len"><i class="fa-solid fa-circle-check"></i>@L.L("8 أحرف أو أكثر", "8+ characters")</li>
+                <li data-rule="digit"><i class="fa-solid fa-circle-check"></i>@L.L("رقم (0-9)", "A digit")</li>
+                <li data-rule="upper"><i class="fa-solid fa-circle-check"></i>@L.L("حرف إنجليزي كبير (A-Z)", "Uppercase (A-Z)")</li>
+            </ul>
+        </div>
+    }
+}
+
+<div class="card p-5 mb-4 la-card">
+    <div class="la-info">
+        <span class="text-sm text-muted">@L.L("حساب الدخول للنظام", "System login")</span>
+        @if (has)
+        {
+            <div class="la-line"><span class="la-pill ok"><i class="fa-solid fa-circle-check"></i>@L.L("لديه حساب", "Has login")</span>
+                <strong dir="ltr">@(Model.LoginEmail ?? "—")</strong></div>
+            <small class="text-muted">@L.L("يدخل بهذا الإيميل. الصلاحيات تحدَّد من قسم «الأدوار» تحت.", "Signs in with this email. Permissions come from the roles below.")</small>
+        }
+        else
+        {
+            <div class="la-line"><span class="la-pill no"><i class="fa-solid fa-user-slash"></i>@L.L("لا يوجد حساب دخول", "No login")</span></div>
+            <small class="text-muted">@L.L("الموظف مسجّل في النظام لكن ما يقدر يدخل عليه.", "The employee is on record but cannot sign in.")</small>
+        }
+    </div>
+    @if (Model.CanEdit)
+    {
+        <div class="la-actions">
+            @if (has)
+            {
+                <button type="button" class="btn btn-ghost btn-sm" data-modal-open="modal-login-pass"><i class="fa-solid fa-key me-1"></i>@L.L("تغيير كلمة المرور", "Change password")</button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-primary btn-sm" data-modal-open="modal-login-create"><i class="fa-solid fa-user-plus me-1"></i>@L.L("إنشاء حساب دخول", "Create login")</button>
+            }
+        </div>
+    }
+</div>
+
+@if (Model.CanEdit)
+{
+    if (!has)
+    {
+        <dialog id="modal-login-create" class="modal la-modal">
+            <form method="post" asp-action="CreateLogin" asp-route-id="@e.Id" autocomplete="off" data-la-form>
+                @Html.AntiForgeryToken()
+                @{ Hero("fa-user-plus", L.L("إنشاء حساب دخول", "Create login"), "modal-login-create"); }
+                <div class="la-body">
+                    <div class="la-field">
+                        <label for="la-email">@L.L("البريد الإلكتروني", "Email")<span class="la-hint">@L.L("يُستخدم كاسم دخول", "used as username")</span></label>
+                        <div class="la-input">
+                            <i class="fa-regular fa-envelope la-ico"></i>
+                            <input type="email" name="email" id="la-email" dir="ltr" required value="@e.Email" autocomplete="off"
+                                   spellcheck="false" placeholder="name@company.com" />
+                        </div>
+                    </div>
+                    @{ PassField("la-pass", L.L("كلمة المرور", "Password")); }
+                    <div class="la-note">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>@L.L("الحساب لحاله ما يعطي أي صلاحية. بعد الإنشاء أسند له دور من «الأدوار والصلاحيات».", "A login alone grants nothing — assign a role afterwards.")</span>
+                    </div>
+                </div>
+                <div class="la-foot">
+                    <button type="button" class="la-btn ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="la-btn primary" data-la-submit><i class="fa-solid fa-user-check"></i>@L.L("إنشاء الحساب", "Create account")</button>
+                </div>
+            </form>
+        </dialog>
+        @if (TempData["reopenLogin"] is bool r1 && r1) { <script>document.addEventListener('DOMContentLoaded', () => document.getElementById('modal-login-create')?.showModal());</script> }
+    }
+    else
+    {
+        <dialog id="modal-login-pass" class="modal la-modal">
+            <form method="post" asp-action="ResetLoginPassword" asp-route-id="@e.Id" autocomplete="off" data-la-form>
+                @Html.AntiForgeryToken()
+                @{ Hero("fa-key", L.L("تغيير كلمة المرور", "Change password"), "modal-login-pass"); }
+                <div class="la-body">
+                    <div class="la-account"><i class="fa-regular fa-envelope"></i><span dir="ltr">@Model.LoginEmail</span></div>
+                    @{ PassField("la-newpass", L.L("كلمة المرور الجديدة", "New password")); }
+                    <div class="la-note">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>@L.L("كلمة المرور القديمة تتوقف فوراً. أعطِ الموظف الجديدة بطريقة آمنة.", "The old password stops working immediately.")</span>
+                    </div>
+                </div>
+                <div class="la-foot">
+                    <button type="button" class="la-btn ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="la-btn primary" data-la-submit><i class="fa-solid fa-check"></i>@L.L("حفظ كلمة المرور", "Save password")</button>
+                </div>
+            </form>
+        </dialog>
+        @if (TempData["reopenPassword"] is bool r2 && r2) { <script>document.addEventListener('DOMContentLoaded', () => document.getElementById('modal-login-pass')?.showModal());</script> }
+    }
+}
+
+<style>
+    /* ── card on the profile ── */
+    .la-card { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .la-info { display: grid; gap: 4px; flex: 1; min-width: 220px; }
+    .la-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .la-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .la-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .la-pill.ok { background: #d1fae5; color: #047857; }
+    .la-pill.no { background: #f1f5f9; color: #475569; }
+
+    /* ── dialog ── */
+    dialog.la-modal { width: min(94vw, 480px); border: 0; border-radius: 22px; padding: 0; overflow: hidden;
+        box-shadow: 0 30px 80px -20px rgba(15, 23, 42, .45); }
+    dialog.la-modal[open] { animation: la-pop .22s cubic-bezier(.2, .9, .3, 1.2); }
+    dialog.la-modal::backdrop { background: rgba(15, 23, 42, .5); backdrop-filter: blur(3px); }
+    @@keyframes la-pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+
+    .la-hero { position: relative; display: flex; align-items: center; gap: 14px; padding: 22px 22px 20px; color: #fff;
+        background: radial-gradient(120% 140% at 0% 0%, rgba(200, 168, 75, .28), transparent 55%), linear-gradient(135deg, #1a2744, #25375f); }
+    .la-avatar { width: 54px; height: 54px; flex: none; border-radius: 16px; display: grid; place-items: center; font-weight: 800; font-size: 1.1rem;
+        box-shadow: 0 0 0 3px rgba(200, 168, 75, .55), 0 8px 18px -6px rgba(0, 0, 0, .5); }
+    .la-hero-txt { display: grid; gap: 2px; min-width: 0; }
+    .la-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: .72rem; font-weight: 700; color: #e6cf85; letter-spacing: .02em; }
+    .la-who { font-size: 1.08rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .la-sub { font-size: .75rem; color: rgba(255, 255, 255, .65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .la-x { position: absolute; top: 14px; inset-inline-end: 14px; width: 32px; height: 32px; border-radius: 10px; border: 0; cursor: pointer;
+        background: rgba(255, 255, 255, .1); color: #fff; display: grid; place-items: center; transition: background .15s; }
+    .la-x:hover { background: rgba(255, 255, 255, .2); }
+
+    .la-body { padding: 22px; display: grid; gap: 18px; background: #fff; }
+    .la-field { display: grid; gap: 8px; }
+    .la-field label { font-size: .82rem; font-weight: 700; color: #1a2744; display: flex; align-items: center; gap: 8px; }
+    .la-hint { font-weight: 500; font-size: .72rem; color: #94a3b8; }
+    .la-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .la-gen { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; cursor: pointer; font: inherit; font-size: .75rem;
+        font-weight: 700; color: #a8862c; padding: 4px 8px; border-radius: 8px; }
+    .la-gen:hover { background: #fbf6e6; }
+
+    .la-input { position: relative; display: flex; align-items: center; height: 48px; border: 1.5px solid #e2e8f0; border-radius: 14px;
+        background: #f8fafc; transition: border-color .15s, box-shadow .15s, background .15s; }
+    .la-input:focus-within { border-color: #1a2744; background: #fff; box-shadow: 0 0 0 4px rgba(26, 39, 68, .08); }
+    .la-input .la-ico { width: 44px; text-align: center; color: #94a3b8; flex: none; transition: color .15s; }
+    .la-input:focus-within .la-ico { color: #1a2744; }
+    .la-input input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; font-size: .95rem;
+        color: #0f172a; padding: 0 14px 0 14px; padding-inline-start: 0; text-align: left; }
+    .la-input input::placeholder { color: #cbd5e1; }
+    .la-input input[type=password] { letter-spacing: .18em; }
+    .la-input.has-end input { padding-inline-end: 4px; }
+    .la-end { display: flex; gap: 2px; padding-inline-end: 6px; flex: none; }
+    .la-icon-btn { width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: #64748b; cursor: pointer;
+        display: grid; place-items: center; font-size: .95rem; transition: background .15s, color .15s; }
+    .la-icon-btn:hover { background: #eef1f7; color: #1a2744; }
+    .la-icon-btn:focus-visible { outline: 2px solid #c8a84b; outline-offset: 1px; }
+    .la-icon-btn[aria-pressed=true] { background: #1a2744; color: #fff; }
+    .la-icon-btn.done { color: #047857; }
+
+    .la-meter { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 6px; align-items: center; }
+    .la-meter span { height: 5px; border-radius: 99px; background: #e2e8f0; transition: background .2s; }
+    .la-meter em { font-style: normal; font-size: .72rem; font-weight: 700; color: #94a3b8; min-width: 44px; text-align: end; }
+    .la-meter[data-level="1"] span:nth-child(-n+1) { background: #ef4444; }
+    .la-meter[data-level="2"] span:nth-child(-n+2) { background: #f59e0b; }
+    .la-meter[data-level="3"] span:nth-child(-n+3) { background: #10b981; }
+    .la-meter[data-level="4"] span:nth-child(-n+4) { background: #047857; }
+    .la-meter[data-level="1"] em { color: #ef4444; } .la-meter[data-level="2"] em { color: #d97706; }
+    .la-meter[data-level="3"] em, .la-meter[data-level="4"] em { color: #047857; }
+
+    .la-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+    .la-rules li { display: inline-flex; align-items: center; gap: 6px; font-size: .74rem; font-weight: 600; color: #64748b;
+        background: #f1f5f9; padding: 4px 10px; border-radius: 999px; transition: background .15s, color .15s; }
+    .la-rules li i { color: #cbd5e1; transition: color .15s; }
+    .la-rules li.ok { background: #ecfdf5; color: #047857; }
+    .la-rules li.ok i { color: #10b981; }
+
+    .la-account { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: #f8fafc;
+        border: 1px dashed #cbd5e1; font-weight: 600; color: #1a2744; font-size: .9rem; }
+    .la-account i { color: #94a3b8; }
+    .la-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: #fbf6e6;
+        border: 1px solid #f0e2b3; color: #6b5516; font-size: .78rem; line-height: 1.7; }
+    .la-note i { color: #c8a84b; margin-top: 3px; }
+
+    .la-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px; background: #f8fafc; border-top: 1px solid #eef1f5; }
+    .la-btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 12px; border: 0; cursor: pointer;
+        font: inherit; font-size: .9rem; font-weight: 700; white-space: nowrap; transition: transform .1s, box-shadow .15s, background .15s, opacity .15s; }
+    .la-btn:active { transform: translateY(1px); }
+    .la-btn.ghost { background: transparent; color: #475569; }
+    .la-btn.ghost:hover { background: #eef1f5; }
+    .la-btn.primary { background: linear-gradient(135deg, #1a2744, #2a3d68); color: #fff; box-shadow: 0 8px 18px -8px rgba(26, 39, 68, .7); }
+    .la-btn.primary:hover { box-shadow: 0 10px 22px -8px rgba(26, 39, 68, .85); }
+    .la-btn.primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+    @@media (max-width: 480px) { .la-foot .la-btn { flex: 1; justify-content: center; } }
+</style>
+<script>
+(function () {
+    const t = @Json.Serialize(new { weak = L.L("ضعيفة", "Weak"), fair = L.L("مقبولة", "Fair"), good = L.L("جيدة", "Good"), strong = L.L("قوية", "Strong"), copied = L.L("تم النسخ", "Copied") });
+    const rules = { len: v => v.length >= 8, digit: v => /\d/.test(v), upper: v => /[A-Z]/.test(v) };
+
+    function evaluate(input) {
+        const v = input.value, id = input.id;
+        let ok = 0;
+        document.querySelectorAll(`[data-la-rules="${id}"] li`).forEach(li => {
+            const pass = rules[li.dataset.rule](v); li.classList.toggle('ok', pass); if (pass) ok++;
+        });
+        let level = 0;
+        if (v) {
+            level = ok <= 1 ? 1 : ok === 2 ? 2 : 3;
+            if (level === 3 && v.length >= 12 && /[a-z]/.test(v)) level = 4;
+        }
+        const m = document.querySelector(`[data-la-meter="${id}"]`);
+        m.dataset.level = level;
+        m.querySelector('em').textContent = ['', t.weak, t.fair, t.good, t.strong][level];
+        const btn = input.form.querySelector('[data-la-submit]');
+        if (btn) btn.disabled = ok < 3;
+    }
+
+    function setVisible(input, show) {
+        input.type = show ? 'text' : 'password';
+        const b = document.querySelector(`[data-la-eye="${input.id}"]`);
+        b.setAttribute('aria-pressed', show);
+        b.title = b.ariaLabel = show ? b.dataset.hide : b.dataset.show;
+        b.querySelector('i').className = 'fa-regular ' + (show ? 'fa-eye-slash' : 'fa-eye');
+    }
+
+    function generate() {
+        const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789'];
+        const all = sets.join('');
+        const rnd = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; };
+        const chars = sets.map(s => s[rnd(s.length)]);
+        while (chars.length < 12) chars.push(all[rnd(all.length)]);
+        for (let i = chars.length - 1; i > 0; i--) { const j = rnd(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+        return chars.join('');
+    }
+
+    function copy(text, btn) {
+        const done = () => { btn.classList.add('done'); btn.querySelector('i').className = 'fa-solid fa-check'; btn.title = t.copied;
+            setTimeout(() => { btn.classList.remove('done'); btn.querySelector('i').className = 'fa-regular fa-copy'; }, 1400); };
+        if (navigator.clipboard && window.isSecureContext) { navigator.clipboard.writeText(text).then(done); return; }
+        const ta = Object.assign(document.createElement('textarea'), { value: text }); ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } finally { ta.remove(); }
+    }
+
+    document.querySelectorAll('[data-la-pass]').forEach(i => { i.addEventListener('input', () => evaluate(i)); evaluate(i); });
+    document.querySelectorAll('[data-la-eye]').forEach(b => b.addEventListener('click', () => {
+        const i = document.getElementById(b.dataset.laEye);
+        setVisible(i, i.type === 'password'); i.focus({ preventScroll: true });
+    }));
+    document.querySelectorAll('[data-la-gen]').forEach(b => b.addEventListener('click', () => {
+        const i = document.getElementById(b.dataset.laGen);
+        i.value = generate(); setVisible(i, true); evaluate(i); i.focus(); i.select();
+    }));
+    document.querySelectorAll('[data-la-copy]').forEach(b => b.addEventListener('click', () => {
+        const i = document.getElementById(b.dataset.laCopy); if (i.value) copy(i.value, b);
+    }));
+    // Always open with a hidden, empty password.
+    document.querySelectorAll('dialog.la-modal').forEach(d => d.addEventListener('close', () => {
+        d.querySelectorAll('[data-la-pass]').forEach(i => { i.value = ''; setVisible(i, false); evaluate(i); });
+    }));
+})();
+</script>

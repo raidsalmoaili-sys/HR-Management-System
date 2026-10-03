@@ -1,0 +1,109 @@
+@* Shared "change employee status" dialog — used by Employees/Index (status badge) and Employees/Detail (status card).
+   Open it from JS: hrOpenStatusModal({ id, name, status, lastDay, returnUrl, lastDayOnly }).
+   See docs/features/employee-status.md *@
+@using Project_HR_1.Models.Hr
+
+<dialog id="modal-status" class="modal">
+    <form method="post" asp-controller="Employees" asp-action="ChangeStatus" id="status-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="id" id="st-id" />
+        <input type="hidden" name="returnUrl" id="st-return" />
+
+        <div class="modal-header">
+            <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-user-tag"></i></span><span class="mm-txt"><small>@L.L("الموظفون", "Employees")</small><span id="st-title">@L.L("حالة الموظف", "Employee status")</span></span></span>
+            <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="modal-body">
+            <div class="st-name" id="st-name"></div>
+
+            <div class="st-options" id="st-options">
+                @foreach (var s in EmployeeStatuses.All)
+                {
+                    <label class="st-opt st-@s.Badge">
+                        <input type="radio" name="status" value="@s.Code" required />
+                        <i class="fa-solid @s.Icon"></i>
+                        <span>@L.L(s.NameAr, s.NameEn)</span>
+                    </label>
+                }
+            </div>
+
+            <div class="st-field" id="st-date-wrap" hidden>
+                <label for="st-date">@L.L("تاريخ آخر يوم عمل", "Last working day")</label>
+                <input type="date" name="date" id="st-date" class="auth-input" />
+                <small>@L.L("يُترك فارغاً = اليوم. تقدر تعدّله لاحقاً من ملف الموظف.", "Empty = today. You can change it later from the profile.")</small>
+            </div>
+
+            <div class="st-field">
+                <label for="st-note">@L.L("ملاحظة (اختياري)", "Note (optional)")</label>
+                <input type="text" name="note" id="st-note" maxlength="300" class="auth-input"
+                       placeholder="@L.L("مثال: قدّم استقالته بتاريخ…", "e.g. resignation letter received…")" />
+                <small>@L.L("تنحفظ في سجل النشاطات.", "Saved in the activity log.")</small>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check me-1"></i>@L.L("حفظ", "Save")</button>
+        </div>
+    </form>
+</dialog>
+
+<style>
+    #modal-status .st-name { font-weight: 700; margin-bottom: 12px; color: #1a2744; }
+    #modal-status .st-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    #modal-status .st-opt { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: .9rem; background: #fff; transition: border-color .12s, background .12s; }
+    #modal-status .st-opt input { accent-color: var(--hr-primary); margin: 0; }
+    #modal-status .st-opt i { width: 16px; text-align: center; }
+    #modal-status .st-success i { color: #047857; } #modal-status .st-warning i { color: #b45309; }
+    #modal-status .st-muted i { color: #475569; }   #modal-status .st-danger i { color: #be123c; }
+    #modal-status .st-opt:has(input:checked) { border-color: var(--hr-primary); background: #eef1f7; }
+    #modal-status .st-field { display: grid; gap: 4px; margin-bottom: 12px; }
+    #modal-status .st-field label { font-size: .8rem; font-weight: 700; color: #475569; }
+    #modal-status .st-field small { font-size: .72rem; color: #64748b; }
+    #modal-status .st-options.locked .st-opt:not(:has(input:checked)) { display: none; }
+    /* status badge colours (kept here so they work even before the Tailwind CSS is rebuilt) */
+    .st-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: .75rem; font-weight: 700; white-space: nowrap; }
+    .st-pill.success { background: #d1fae5; color: #047857; } .st-pill.warning { background: #fef3c7; color: #b45309; }
+    .st-pill.muted { background: #f1f5f9; color: #475569; }  .st-pill.danger { background: #ffe4e6; color: #be123c; }
+    .st-badge-btn { border: 0; cursor: pointer; font: inherit; }
+    .st-badge-btn:hover { filter: brightness(.95); box-shadow: 0 0 0 2px rgba(26, 39, 68, .15); }
+    .st-badge-btn .fa-pen { font-size: .6rem; opacity: .6; margin-inline-start: 4px; }
+</style>
+
+<script>
+(function () {
+    const dlg = document.getElementById('modal-status');
+    const dateWrap = document.getElementById('st-date-wrap');
+    const dateInput = document.getElementById('st-date');
+    const endsWork = @Json.Serialize(new[] { EmployeeStatuses.Resigned, EmployeeStatuses.Absconded });
+    const t = @Json.Serialize(new { change = L.L("تغيير حالة الموظف", "Change employee status"), lastDay = L.L("تعديل تاريخ آخر يوم", "Edit last working day") });
+
+    function syncDate() {
+        const v = (dlg.querySelector('input[name=status]:checked') || {}).value;
+        dateWrap.hidden = !endsWork.includes(v);
+    }
+    dlg.querySelectorAll('input[name=status]').forEach(r => r.addEventListener('change', syncDate));
+
+    window.hrOpenStatusModal = function (o) {
+        document.getElementById('st-id').value = o.id;
+        document.getElementById('st-return').value = o.returnUrl || (location.pathname + location.search);
+        document.getElementById('st-name').textContent = o.name || '';
+        document.getElementById('st-title').textContent = o.lastDayOnly ? t.lastDay : t.change;
+        document.getElementById('st-note').value = '';
+        dlg.querySelectorAll('input[name=status]').forEach(r => r.checked = r.value === o.status);
+        document.getElementById('st-options').classList.toggle('locked', !!o.lastDayOnly);
+        dateInput.value = o.lastDay || '';
+        syncDate();
+        dlg.showModal();
+    };
+
+    // Any element with data-status-edit='{"id":..}' opens the dialog.
+    document.addEventListener('click', e => {
+        const b = e.target.closest('[data-status-edit]');
+        if (!b) return;
+        e.preventDefault();
+        hrOpenStatusModal(JSON.parse(b.getAttribute('data-status-edit')));
+    });
+})();
+</script>

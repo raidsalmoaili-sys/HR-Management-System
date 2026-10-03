@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="@L.Lang" dir="@(L.IsRtl ? "rtl" : "ltr")">
+<head>
+    <partial name="_HtmlHead" />
+</head>
+<body class="@(L.IsRtl ? "font-tajawal" : "font-inter") min-h-screen flex flex-col">
+    <header>
+        <nav class="bg-white border-b border-slate-200 sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
+                <a class="text-base font-bold text-primary" asp-controller="Account" asp-action="Login">
+                    <i class="fa-solid fa-building-shield me-2 text-accent"></i> @L.T("brand")
+                </a>
+                <div class="flex items-center gap-4">
+                    <partial name="_AuthLangSwitch" />
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="inline">
+                            <button type="submit" class="btn btn-ghost text-sm">@L.T("logout")</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a class="btn btn-primary text-sm" asp-controller="Account" asp-action="Login">@L.T("auth_signin")</a>
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 py-8">
+        @RenderBody()
+    </main>
+
+    <footer class="border-t border-slate-200 py-4 text-center text-xs text-muted">
+        &copy; 2026 - @L.T("brand")
+    </footer>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

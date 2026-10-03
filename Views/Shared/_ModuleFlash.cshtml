@@ -1,0 +1,9 @@
+@* Flash message written by HrModuleControllerBase.Flash(ar, en, error) as "ar|en". *@
+@foreach (var (key, cls, icon) in new[] { ("ModuleOk", "ok", "fa-circle-check"), ("ModuleError", "err", "fa-triangle-exclamation") })
+{
+    if (TempData[key] is string msg && msg.Length > 0)
+    {
+        var parts = msg.Split('|', 2);
+        <div class="hm-flash @cls"><i class="fa-solid @icon"></i><span>@L.L(parts[0], parts.Length > 1 ? parts[1] : parts[0])</span></div>
+    }
+}

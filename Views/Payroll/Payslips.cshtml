@@ -1,0 +1,82 @@
+@model Project_HR_1.Models.ViewModels.Modules.PayslipVM
+@using Project_HR_1.Services.HrModules
+@{
+    Layout = null;
+    var r = Model.Run;
+    string M(decimal v) => HrCalendar.Money(v);
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>قسائم الرواتب — @r.PeriodLabel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <style>
+        @@page { size: A4; margin: 10mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Tajawal, sans-serif; color: #1a2744; background: #e5e7eb; margin: 0; font-size: 12.5px; }
+        .slip { background: #fff; width: 190mm; margin: 10px auto; padding: 9mm 10mm; border-radius: 10px; box-shadow: 0 3px 16px rgba(0,0,0,.07); page-break-inside: avoid; }
+        .slip + .slip { margin-top: 14px; }
+        .hd { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1a2744; padding-bottom: 6px; margin-bottom: 8px; }
+        .hd h1 { font-size: 16px; margin: 0; }
+        .hd .p { font-size: 12px; color: #475569; }
+        .info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 14px; margin-bottom: 8px; }
+        .info div { background: #f8fafc; border-radius: 6px; padding: 4px 8px; }
+        .info small { color: #64748b; display: block; font-size: 10.5px; }
+        .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: right; background: #1a2744; color: #fff; padding: 5px 8px; font-size: 12px; }
+        td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+        td.n { text-align: left; direction: ltr; font-variant-numeric: tabular-nums; }
+        tr.t td { font-weight: 800; background: #f1f5f9; }
+        .net { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 8px 12px; font-size: 15px; font-weight: 800; color: #065f46; }
+        .ft { margin-top: 8px; display: flex; justify-content: space-between; color: #94a3b8; font-size: 10.5px; }
+        .toolbar { text-align: center; margin: 12px; }
+        .toolbar button { font-family: inherit; font-size: 14px; padding: 8px 22px; border-radius: 10px; border: 0; background: #1a2744; color: #fff; cursor: pointer; }
+        @@media print { body { background: #fff; } .slip { box-shadow: none; margin: 0 auto 8mm; } .toolbar { display: none; } }
+    </style>
+</head>
+<body>
+<div class="toolbar"><button onclick="window.print()">طباعة / حفظ PDF (@Model.Items.Count قسيمة)</button></div>
+@foreach (var it in Model.Items)
+{
+    var e = it.Employee!;
+    <div class="slip">
+        <div class="hd">
+            <div><h1>قسيمة راتب</h1><div class="p">@r.Company?.NameAr</div></div>
+            <div class="p">شهر <b>@HrCalendar.MonthNameAr(r.Month) @r.Year</b></div>
+        </div>
+        <div class="info">
+            <div><small>الموظف</small>@e.NameAr</div>
+            <div><small>الرقم الوظيفي</small>@e.EmployeeCode</div>
+            <div><small>الفرع</small>@Model.BranchNames.GetValueOrDefault(it.BranchId)</div>
+            <div><small>المسمى</small>@(e.JobTitleAr ?? "—")</div>
+            <div><small>البنك</small>@(e.Financial?.BankName ?? "—")</div>
+            <div><small>الآيبان</small><span style="direction:ltr;unicode-bidi:isolate">@(e.Financial?.Iban ?? "—")</span></div>
+        </div>
+        <div class="cols">
+            <table>
+                <tr><th colspan="2">الاستحقاقات</th></tr>
+                <tr><td>الراتب الأساسي</td><td class="n">@M(it.BasicSalary)</td></tr>
+                <tr><td>بدل السكن</td><td class="n">@M(it.HousingAllowance)</td></tr>
+                <tr><td>بدل النقل</td><td class="n">@M(it.TransportAllowance)</td></tr>
+                <tr><td>بدلات أخرى</td><td class="n">@M(it.OtherAllowance)</td></tr>
+                <tr><td>مكافآت / إضافي</td><td class="n">@M(it.Additions)</td></tr>
+                <tr class="t"><td>الإجمالي</td><td class="n">@M(it.Gross)</td></tr>
+            </table>
+            <table>
+                <tr><th colspan="2">الاستقطاعات</th></tr>
+                <tr><td>غياب (@it.AbsentDays) وإجازة غير مدفوعة (@it.UnpaidLeaveDays)</td><td class="n">@M(it.AbsenceDeduction)</td></tr>
+                <tr><td>التأمينات الاجتماعية</td><td class="n">@M(it.GosiDeduction)</td></tr>
+                <tr><td>قسط السلفة</td><td class="n">@M(it.AdvanceDeduction)</td></tr>
+                <tr><td>خصومات أخرى @(string.IsNullOrEmpty(it.Notes) ? "" : "— " + it.Notes)</td><td class="n">@M(it.OtherDeductions)</td></tr>
+                <tr><td>&nbsp;</td><td></td></tr>
+                <tr class="t"><td>الإجمالي</td><td class="n">@M(it.TotalDeductions)</td></tr>
+            </table>
+        </div>
+        <div class="net"><span>صافي الراتب المستحق</span><span style="direction:ltr">@M(it.Net) SAR</span></div>
+        <div class="ft"><span>@r.PeriodLabel · @(r.Status == "paid" ? "مصروف" : r.Status == "approved" ? "معتمد" : "مسودة")</span><span>نسخة عرض — بيانات تجريبية</span></div>
+    </div>
+}
+</body>
+</html>

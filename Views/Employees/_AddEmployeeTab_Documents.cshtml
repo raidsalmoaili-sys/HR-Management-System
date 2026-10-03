@@ -1,0 +1,47 @@
+@model Project_HR_1.Models.ViewModels.Management.AddEmployeeVM
+
+<div class="text-xs text-muted mb-3">
+    <i class="fa-solid fa-circle-info me-1"></i>
+    @L.L("صيغة PDF فقط، الحد الأقصى 5 ميغابايت لكل ملف.", "PDF only, max 5MB per file.")
+</div>
+
+<div class="doc-list">
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("الهوية الوطنية", "National ID")</label>
+        <input asp-for="NationalIdFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("رقم جواز السفر", "Passport")</label>
+        <input asp-for="PassportFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("رقم الإقامة", "Iqama")</label>
+        <input asp-for="IqamaFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("رخصة القيادة", "Driving license")</label>
+        <input asp-for="DrivingLicenseFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("السيرة الذاتية (CV)", "CV")</label>
+        <input asp-for="CvFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("العقد", "Contract")</label>
+        <input asp-for="ContractFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("الشهادة الدراسية", "Education certificate")</label>
+        <input asp-for="EducationCertificateFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+    <div class="doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-3 items-end mb-3">
+        <label class="auth-label">@L.L("شهادة الآيبان البنكي", "IBAN certificate")</label>
+        <input asp-for="IbanCertificateFile" type="file" accept="application/pdf" class="auth-input" />
+    </div>
+</div>
+
+<div data-doc-rows></div>
+
+<button type="button" data-add-doc-row class="btn btn-ghost btn-sm mt-2">
+    <i class="fa-solid fa-plus me-1"></i>@L.L("إضافة وثيقة جديدة", "Add new document")
+</button>

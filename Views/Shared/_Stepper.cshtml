@@ -1,0 +1,23 @@
+@model Project_HR_1.Models.ViewModels.Entry.StepperVM
+@{
+    var total = Model.Steps.Count;
+    var arrow = L.IsRtl ? "fa-chevron-left" : "fa-chevron-right";
+}
+<nav class="stepper" aria-label="Entry steps">
+    @for (int i = 0; i < total; i++)
+    {
+        var s = Model.Steps[i];
+        var cls = s.Current ? "step current" : (s.Done ? "step done" : "step pending");
+        <div class="@cls">
+            <span class="step-num">
+                @if (s.Done) { <i class="fa-solid fa-check"></i> }
+                else { @s.Num }
+            </span>
+            <span class="step-text">@L.T(s.LabelKey)</span>
+        </div>
+        @if (i < total - 1)
+        {
+            <i class="fa-solid @arrow step-arrow"></i>
+        }
+    }
+</nav>

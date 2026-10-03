@@ -1,0 +1,131 @@
+@model Project_HR_1.Models.ViewModels.Management.SponsorsListVM
+@{ ViewData["Title"] = "Sponsors"; }
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("الكفلاء", "Sponsors")</h2>
+        <div class="sub">@L.L("كتالوج الكفلاء لكل شركة", "Per-company sponsor catalog")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-create">
+                <i class="fa-solid fa-plus me-1"></i>@L.L("إضافة كفيل", "Add Sponsor")
+            </button>
+        }
+    </div>
+</div>
+
+<div class="data-card">
+    <div class="card-head">
+        <div class="card-title"><i class="fa-solid fa-user-tie"></i>@L.L("كل الكفلاء", "All Sponsors")</div>
+        <span class="text-xs text-muted">@Model.Sponsors.Count @L.L("سجل", "rows")</span>
+    </div>
+    <form method="get" class="filter-bar">
+        <select name="companyId" class="select-box" onchange="this.form.submit()">
+            <option value="">@L.L("كل الشركات", "All companies")</option>
+            @foreach (var c in Model.Companies)
+            {
+                var sel = Model.CompanyFilter == c.Id ? "selected" : null;
+                <option value="@c.Id" selected="@sel">@L.L(c.NameAr, c.NameEn)</option>
+            }
+        </select>
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الكفيل", "Sponsor")</th>
+                    <th>@L.L("الشركة", "Company")</th>
+                    <th class="text-center">@L.L("نشط", "Active")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Sponsors.Count == 0)
+            {
+                <tr class="empty"><td colspan="4">@L.L("لا يوجد كفلاء", "No sponsors.")</td></tr>
+            }
+            @foreach (var s in Model.Sponsors)
+            {
+                <tr>
+                    <td class="font-semibold">@L.L(s.NameAr, s.NameEn)</td>
+                    <td class="text-muted">@(s.Company != null ? L.L(s.Company.NameAr, s.Company.NameEn) : "—")</td>
+                    <td class="text-center">
+                        @if (s.IsActive)
+                        {
+                            <span class="badge badge-success">@L.L("نشط", "Active")</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-muted">@L.L("متوقف", "Inactive")</span>
+                        }
+                    </td>
+                    <td class="text-end whitespace-nowrap">
+                        @if (Model.CanEdit)
+                        {
+                            <button type="button" class="icon-btn" data-modal-open="modal-edit-@s.Id"><i class="fa-solid fa-pen"></i></button>
+                        }
+                        @if (Model.CanDelete)
+                        {
+                            <form asp-action="Delete" asp-route-id="@s.Id" method="post" class="inline" onsubmit="return confirm('@L.L("حذف؟", "Delete?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn icon-btn-danger"><i class="fa-solid fa-trash"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.CanCreate)
+{
+    var emptyVm = new Project_HR_1.Models.ViewModels.Management.SponsorEditVM { Companies = Model.Companies };
+    <dialog id="modal-create" class="modal">
+        <form method="post" asp-action="Create">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-user-tie"></i></span><span class="mm-txt"><small>@L.L("الكفلاء", "Sponsors")</small>@L.L("كفيل جديد", "New Sponsor")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <partial name="_SponsorFields" model="emptyVm" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("إنشاء", "Create")</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@if (Model.CanEdit)
+{
+    foreach (var s in Model.Sponsors)
+    {
+        var vm = new Project_HR_1.Models.ViewModels.Management.SponsorEditVM
+        {
+            Id = s.Id, CompanyId = s.CompanyId, NameAr = s.NameAr, NameEn = s.NameEn, IsActive = s.IsActive,
+            Companies = Model.Companies,
+        };
+        <dialog id="modal-edit-@s.Id" class="modal">
+            <form method="post" asp-action="Edit" asp-route-id="@s.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-pen-to-square"></i></span><span class="mm-txt"><small>@L.L("الكفلاء", "Sponsors")</small>@L.L("تعديل الكفيل", "Edit Sponsor")</span></span>
+                    <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <partial name="_SponsorFields" model="vm" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="btn btn-primary">@L.L("حفظ", "Save")</button>
+                </div>
+            </form>
+        </dialog>
+    }
+}

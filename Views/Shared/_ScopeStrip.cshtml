@@ -1,0 +1,96 @@
+@inject Project_HR_1.Models.AppDbContext _db
+@{
+    var scope = Scope.Current;
+    Project_HR_1.Models.Hr.Company? curCompany = null;
+    Project_HR_1.Models.Hr.Branch? curBranch = null;
+    if (scope.CompanyId.HasValue)
+        curCompany = await _db.Companies.AsNoTracking().FirstOrDefaultAsync(c => c.Id == scope.CompanyId.Value);
+    if (scope.BranchId.HasValue)
+        curBranch = await _db.Branches.AsNoTracking().FirstOrDefaultAsync(b => b.Id == scope.BranchId.Value);
+
+    var arrow = L.IsRtl ? "fa-chevron-left" : "fa-chevron-right";
+    var scopeIcon = scope.Level switch {
+        ScopeLevel.Branch  => "fa-location-dot",
+        ScopeLevel.Company => "fa-building",
+        _                  => "fa-globe",
+    };
+    var scopeColor = scope.Level switch {
+        ScopeLevel.Branch  => "#16a085",
+        ScopeLevel.Company => "#c8a84b",
+        _                  => "#8e44ad",
+    };
+    var token = Html.AntiForgeryToken();
+}
+<div class="scope-strip" style="--scope-color:@scopeColor">
+    <div class="scope-strip-label">
+        <i class="fa-solid @scopeIcon"></i><span>@L.T("scope")</span>
+    </div>
+    <div class="scope-strip-levels">
+        <form asp-controller="Entry" asp-action="SwitchScope" method="post" class="inline">
+            @token
+            <input type="hidden" name="level" value="Global" />
+            <button type="submit" class="scope-level @(scope.Level == ScopeLevel.Global ? "active" : "")">
+                <i class="fa-solid fa-globe"></i>
+                <div>
+                    <b>@L.T("serviceLevels")</b>
+                    <span>@L.T("scopeGlobal")</span>
+                </div>
+            </button>
+        </form>
+        <i class="fa-solid @arrow scope-arrow"></i>
+
+        @if (curCompany != null)
+        {
+            <form asp-controller="Entry" asp-action="SwitchScope" method="post" class="inline">
+                @token
+                <input type="hidden" name="level" value="Company" />
+                <input type="hidden" name="companyId" value="@curCompany.Id" />
+                <button type="submit" class="scope-level @(scope.Level == ScopeLevel.Company ? "active" : "")">
+                    <i class="fa-solid fa-building"></i>
+                    <div>
+                        <b>@L.T("level_company")</b>
+                        <span>@L.L(curCompany.ShortNameAr ?? curCompany.NameAr, curCompany.ShortNameEn ?? curCompany.NameEn)</span>
+                    </div>
+                </button>
+            </form>
+        }
+        else
+        {
+            <button type="button" class="scope-level" disabled>
+                <i class="fa-solid fa-building"></i>
+                <div>
+                    <b>@L.T("level_company")</b>
+                    <span>@L.L("اختر شركة", "Pick company")</span>
+                </div>
+            </button>
+        }
+        <i class="fa-solid @arrow scope-arrow"></i>
+
+        @if (curBranch != null && curCompany != null)
+        {
+            <form asp-controller="Entry" asp-action="SwitchScope" method="post" class="inline">
+                @token
+                <input type="hidden" name="level" value="Branch" />
+                <input type="hidden" name="companyId" value="@curCompany.Id" />
+                <input type="hidden" name="branchId" value="@curBranch.Id" />
+                <button type="submit" class="scope-level @(scope.Level == ScopeLevel.Branch ? "active" : "")">
+                    <i class="fa-solid fa-location-dot"></i>
+                    <div>
+                        <b>@L.T("level_branch")</b>
+                        <span>@L.L(curBranch.NameAr, curBranch.NameEn ?? curBranch.NameAr)</span>
+                    </div>
+                </button>
+            </form>
+        }
+        else
+        {
+            <button type="button" class="scope-level" disabled>
+                <i class="fa-solid fa-location-dot"></i>
+                <div>
+                    <b>@L.T("level_branch")</b>
+                    <span>@L.L("اختر فرع", "Pick branch")</span>
+                </div>
+            </button>
+        }
+    </div>
+</div>

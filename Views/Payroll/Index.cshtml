@@ -1,0 +1,121 @@
+@model Project_HR_1.Models.ViewModels.Modules.PayrollListVM
+@using Project_HR_1.Models.Hr.Modules
+@using Project_HR_1.Services.HrModules
+@{
+    ViewData["Title"] = L.L("مسيرات الرواتب", "Payroll");
+    var now = DateTime.Today;
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("مسيرات الرواتب", "Payroll")</h2>
+        <div class="sub">@L.L("مسير شهري لكل شركة يُحتسب تلقائياً من التحضير والإجازات والسلف والتأمينات", "Monthly run per company, calculated from attendance, leaves, advances and GOSI")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.Perms.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-run-create"><i class="fa-solid fa-calculator me-1"></i>@L.L("إنشاء مسير", "New payroll run")</button>
+        }
+    </div>
+</div>
+
+<partial name="_ModuleFlash" />
+
+<div class="stats-grid">
+    <div class="stat-card" style="--stat-color:#16a34a"><div class="stat-icon"><i class="fa-solid fa-money-bill-wave"></i></div><div class="stat-info"><h3 class="hm-num">@HrCalendar.Money0(Model.LastNet)</h3><p>@L.L("صافي آخر شهر معتمد (ر.س)", "Last approved month net (SAR)")</p></div></div>
+    <div class="stat-card" style="--stat-color:#1a2744"><div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div><div class="stat-info"><h3 class="hm-num">@HrCalendar.Money0(Model.YearNet)</h3><p>@L.L($"إجمالي صافي {Model.Year} (ر.س)", $"{Model.Year} total net (SAR)")</p></div></div>
+    <div class="stat-card" style="--stat-color:#f59e0b"><div class="stat-icon"><i class="fa-solid fa-pen-ruler"></i></div><div class="stat-info"><h3>@Model.DraftCount</h3><p>@L.L("مسودات بانتظار الاعتماد", "Drafts awaiting approval")</p></div></div>
+    <div class="stat-card" style="--stat-color:#3b82f6"><div class="stat-icon"><i class="fa-solid fa-building"></i></div><div class="stat-info"><h3>@Model.Companies.Count</h3><p>@L.L("شركات في النطاق", "Companies in scope")</p></div></div>
+</div>
+
+<div class="data-card">
+    <form method="get" class="filter-bar">
+        <a class="icon-btn" asp-action="Index" asp-route-year="@(Model.Year - 1)"><i class="fa-solid @(L.L("fa-chevron-right","fa-chevron-left"))"></i></a>
+        <span class="hm-strong hm-num">@Model.Year</span>
+        <a class="icon-btn" asp-action="Index" asp-route-year="@(Model.Year + 1)"><i class="fa-solid @(L.L("fa-chevron-left","fa-chevron-right"))"></i></a>
+        <span class="hm-spacer"></span>
+        <span class="text-xs text-muted">@Model.Runs.Count @L.L("مسير", "runs")</span>
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الفترة", "Period")</th>
+                    <th>@L.L("الشركة", "Company")</th>
+                    <th class="hm-center">@L.L("الموظفون", "Employees")</th>
+                    <th class="hm-right">@L.L("الإجمالي", "Gross")</th>
+                    <th class="hm-right">@L.L("الاستقطاعات", "Deductions")</th>
+                    <th class="hm-right">@L.L("الصافي", "Net")</th>
+                    <th>@L.L("الحالة", "Status")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Runs.Count == 0)
+            {
+                <tr class="empty"><td colspan="8">@L.L("لا توجد مسيرات لهذه السنة", "No payroll runs for this year.")</td></tr>
+            }
+            @foreach (var r in Model.Runs)
+            {
+                var st = PayrollStatuses.Get(r.Status);
+                <tr>
+                    <td class="font-semibold">@L.L(HrCalendar.MonthNameAr(r.Month), HrCalendar.MonthNameEn(r.Month)) <span class="hm-num hm-muted">@r.Year</span></td>
+                    <td>@(r.Company != null ? L.L(r.Company.ShortNameAr ?? r.Company.NameAr, r.Company.ShortNameEn ?? r.Company.NameEn) : "—")</td>
+                    <td class="hm-center">@r.EmployeesCount</td>
+                    <td class="hm-right hm-num">@HrCalendar.Money(r.TotalGross)</td>
+                    <td class="hm-right hm-num" style="color:#b91c1c">@HrCalendar.Money(r.TotalDeductions)</td>
+                    <td class="hm-right hm-num hm-strong" style="color:#15803d">@HrCalendar.Money(r.TotalNet)</td>
+                    <td><span class="badge badge-@st.Badge">@L.L(st.Ar, st.En)</span></td>
+                    <td class="text-end hm-nowrap">
+                        <a class="btn btn-ghost btn-sm" asp-action="Details" asp-route-id="@r.Id"><i class="fa-solid fa-table-list me-1"></i>@L.L("فتح", "Open")</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="hm-note" style="margin-top:1rem">
+    <b>@L.L("طريقة الاحتساب:", "How it's calculated:")</b>
+    @L.L("الأجر اليومي = الإجمالي ÷ 30 · خصم الغياب والإجازة غير المدفوعة بالأجر اليومي · التأمينات الاجتماعية للسعوديين 9.75% من (الأساسي + السكن) بحد أعلى 45,000 · قسط السلفة الشهري · احتساب نسبي للمباشرين والمنتهية خدماتهم خلال الشهر.",
+          "Daily rate = gross ÷ 30 · absences and unpaid leave deducted at the daily rate · GOSI for Saudis 9.75% of (basic + housing), base capped at 45,000 · monthly advance installment · pro-rated for joiners/leavers.")
+</div>
+
+@if (Model.Perms.CanCreate)
+{
+    <dialog id="modal-run-create" class="modal">
+        <form method="post" asp-action="Create">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-calculator"></i></span><span class="mm-txt"><small>@L.L("مسيرات الرواتب", "Payroll")</small>@L.L("إنشاء مسير شهري", "New monthly run")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="hm-form two">
+                    <div class="full">
+                        <label class="auth-label">@L.L("الشركة", "Company")</label>
+                        <select name="companyId" class="auth-input" required>
+                            @foreach (var c in Model.Companies) { <option value="@c.Id">@L.L(c.NameAr, c.NameEn)</option> }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("الشهر", "Month")</label>
+                        <select name="month" class="auth-input">
+                            @for (var m = 1; m <= 12; m++) { <option value="@m" selected="@(m == now.Month ? "selected" : null)">@L.L(HrCalendar.MonthNameAr(m), HrCalendar.MonthNameEn(m))</option> }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("السنة", "Year")</label>
+                        <input type="number" name="year" value="@now.Year" min="2000" max="2100" class="auth-input" />
+                    </div>
+                    <div class="full hm-hint">@L.L("يُنشأ المسير كمسودة ويمكنك إضافة المكافآت والخصومات اليدوية قبل الاعتماد.", "The run is created as a draft; add bonuses and manual deductions before approval.")</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("احتساب", "Calculate")</button>
+            </div>
+        </form>
+    </dialog>
+}

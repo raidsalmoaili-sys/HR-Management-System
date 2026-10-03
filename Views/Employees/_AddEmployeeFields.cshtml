@@ -1,0 +1,153 @@
+@model Project_HR_1.Models.ViewModels.Management.AddEmployeeVM
+
+<div asp-validation-summary="All" class="auth-error"></div>
+
+<div class="emp-tabs" id="emp-tabs-root">
+    <div class="emp-tab-bar" role="tablist">
+        <button type="button" class="emp-tab-btn active" data-tab="general">@L.L("البيانات العامة", "General Info")</button>
+        <button type="button" class="emp-tab-btn" data-tab="personal">@L.L("البيانات الشخصية", "Personal Info")</button>
+        <button type="button" class="emp-tab-btn" data-tab="education">@L.L("التعليم", "Education")</button>
+        <button type="button" class="emp-tab-btn" data-tab="financial">@L.L("البيانات المالية", "Financial Info")</button>
+        <button type="button" class="emp-tab-btn" data-tab="work">@L.L("م. العمل والإجازة", "Work & Leave")</button>
+        <button type="button" class="emp-tab-btn" data-tab="documents">@L.L("الوثائق الرسمية", "Official Documents")</button>
+    </div>
+
+    <div class="emp-tab-panel" data-tab-panel="general">
+        <partial name="_AddEmployeeTab_General" model="Model" />
+    </div>
+    <div class="emp-tab-panel hidden" data-tab-panel="personal">
+        <partial name="_AddEmployeeTab_Personal" model="Model" />
+    </div>
+    <div class="emp-tab-panel hidden" data-tab-panel="education">
+        <partial name="_AddEmployeeTab_Education" model="Model" />
+    </div>
+    <div class="emp-tab-panel hidden" data-tab-panel="financial">
+        <partial name="_AddEmployeeTab_Financial" model="Model" />
+    </div>
+    <div class="emp-tab-panel hidden" data-tab-panel="work">
+        <partial name="_AddEmployeeTab_Work" model="Model" />
+    </div>
+    <div class="emp-tab-panel hidden" data-tab-panel="documents">
+        <partial name="_AddEmployeeTab_Documents" model="Model" />
+    </div>
+</div>
+
+<style>
+.emp-tabs { display: flex; flex-direction: column; gap: 1rem; }
+.emp-tab-bar {
+    display: flex; flex-wrap: wrap; gap: .4rem; border-bottom: 1px solid #e5e7eb; padding-bottom: .5rem;
+    position: sticky; top: -1.5rem; z-index: 5; background: #fff; padding-top: .5rem; margin-top: -.5rem;
+}
+.emp-tab-btn {
+    padding: .45rem .9rem; border-radius: 8px 8px 0 0; border: none; background: transparent;
+    font-size: .85rem; font-weight: 600; color: #64748b; cursor: pointer; transition: background .15s, color .15s;
+}
+.emp-tab-btn:hover { background: #f1f5f9; }
+.emp-tab-btn.active { background: #1a2744; color: #fff; }
+.emp-tab-panel.hidden { display: none; }
+</style>
+
+<script>
+(function () {
+    const bar = document.getElementById('emp-tabs-root');
+    if (!bar) return;
+    const isRtl = document.documentElement.dir === 'rtl';
+    const btns   = bar.querySelectorAll('.emp-tab-btn');
+    const panels = bar.querySelectorAll('.emp-tab-panel');
+
+    btns.forEach(btn => btn.addEventListener('click', () => {
+        btns.forEach(b => b.classList.toggle('active', b === btn));
+        panels.forEach(p => p.classList.toggle('hidden', p.dataset.tabPanel !== btn.dataset.tab));
+    }));
+
+    // ── Education conditional visibility (hidden when "لا", shown + fillable when "نعم") ──
+    const eduYes = bar.querySelector('[data-edu-radio="yes"]');
+    const eduNo  = bar.querySelector('[data-edu-radio="no"]');
+    const eduBlock = bar.querySelector('[data-edu-block]');
+    function applyEdu() {
+        if (!eduBlock) return;
+        const educated = eduYes && eduYes.checked;
+        eduBlock.classList.toggle('hidden', !educated);
+        eduBlock.querySelectorAll('input,select').forEach(el => el.disabled = !educated);
+    }
+    if (eduYes) eduYes.addEventListener('change', applyEdu);
+    if (eduNo)  eduNo.addEventListener('change', applyEdu);
+    applyEdu();
+
+    // ── Salary type conditional fields ──
+    const salaryType = bar.querySelector('[data-salary-type]');
+    const dailyBlock    = bar.querySelector('[data-salary-block="daily"]');
+    const contractBlock = bar.querySelector('[data-salary-block="contract"]');
+    function applySalaryType() {
+        if (!salaryType) return;
+        const v = salaryType.value;
+        if (dailyBlock)    dailyBlock.classList.toggle('hidden', v !== 'Daily');
+        if (contractBlock) contractBlock.classList.toggle('hidden', v !== 'Contract');
+    }
+    if (salaryType) salaryType.addEventListener('change', applySalaryType);
+    applySalaryType();
+
+    // ── Nationality -> End of service advance enable/disable ──
+    const nationality = bar.querySelector('[data-nationality]');
+    const eosaInput = bar.querySelector('[data-eosa]');
+    function applyNationality() {
+        if (!nationality || !eosaInput) return;
+        const isSaudi = nationality.value === 'SA';
+        eosaInput.disabled = isSaudi;
+        if (isSaudi) eosaInput.value = '';
+    }
+    if (nationality) nationality.addEventListener('change', applyNationality);
+    applyNationality();
+
+    // ── Contract type -> end date required only when "محدد المدة" (Limited) ──
+    const contractType = bar.querySelector('[data-contract-type]');
+    const contractEndWrap = bar.querySelector('[data-contract-end-wrap]');
+    function applyContractType() {
+        if (!contractType || !contractEndWrap) return;
+        contractEndWrap.classList.toggle('hidden', contractType.value !== 'Limited');
+    }
+    if (contractType) contractType.addEventListener('change', applyContractType);
+    applyContractType();
+
+    // ── Preview contract: posts the in-progress form (not yet saved) and opens the generated PDF ──
+    const previewBtn = bar.querySelector('#add-preview-contract-btn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', async function () {
+            const form = document.getElementById('add-employee-form');
+            if (!form) return;
+            const origHtml = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+            try {
+                const fd = new FormData(form);
+                const res = await fetch('/Employees/PreviewContract', { method: 'POST', body: fd });
+                if (!res.ok) throw new Error('preview failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } catch {
+                alert(isRtl ? 'تعذّر توليد معاينة العقد.' : 'Could not generate the contract preview.');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = origHtml;
+            }
+        });
+    }
+
+    // ── Dynamic "add new document" rows ──
+    const addDocBtn = bar.querySelector('[data-add-doc-row]');
+    const docRows   = bar.querySelector('[data-doc-rows]');
+    if (addDocBtn && docRows) {
+        addDocBtn.addEventListener('click', function () {
+            const row = document.createElement('div');
+            row.className = 'doc-row grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 items-end';
+            row.innerHTML =
+                '<input type="text" name="CustomDocumentLabels" class="auth-input" placeholder="@L.L("اسم الوثيقة", "Document name")" />' +
+                '<input type="file" name="CustomDocumentFiles" accept="application/pdf" class="auth-input" />' +
+                '<button type="button" class="icon-btn icon-btn-danger" data-remove-row><i class="fa-solid fa-trash"></i></button>';
+            docRows.appendChild(row);
+            row.querySelector('[data-remove-row]').addEventListener('click', () => row.remove());
+        });
+    }
+})();
+</script>

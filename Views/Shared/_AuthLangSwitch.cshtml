@@ -1,0 +1,12 @@
+@{
+    var here = Context.Request.Path + Context.Request.QueryString;
+    var other = L.Lang == "en" ? "ar" : "en";
+}
+<form asp-controller="Language" asp-action="Set" method="post" class="inline">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="lang" value="@other" />
+    <input type="hidden" name="returnUrl" value="@here" />
+    <button type="submit" class="text-sm text-muted hover:text-ink font-medium">
+        @L.T("switchToEN")
+    </button>
+</form>

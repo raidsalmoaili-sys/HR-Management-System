@@ -1,0 +1,56 @@
+@model Project_HR_1.Models.ViewModels.Management.AddEmployeeVM
+
+<div class="mb-3">
+    <span class="auth-label">@L.L("هل الموظف متعلم؟", "Is the employee educated?")</span>
+    <div class="flex items-center gap-5 mt-1">
+        <label class="flex items-center gap-2 text-sm">
+            <input type="radio" name="IsEducated" value="true" data-edu-radio="yes" checked="@(Model.IsEducated)" />
+            @L.L("نعم", "Yes")
+        </label>
+        <label class="flex items-center gap-2 text-sm">
+            <input type="radio" name="IsEducated" value="false" data-edu-radio="no" checked="@(!Model.IsEducated)" />
+            @L.L("لا", "No")
+        </label>
+    </div>
+</div>
+
+<div data-edu-block class="grid grid-cols-1 md:grid-cols-2 gap-4 @(Model.IsEducated ? "" : "hidden")">
+    <div>
+        <label asp-for="EducationLevel" class="auth-label">@L.L("المؤهل الدراسي", "Qualification")</label>
+        <select asp-for="EducationLevel" class="select-box">
+            <option value="">— @L.L("اختر", "select") —</option>
+            @foreach (var lvl in new[] { "ابتدائي", "متوسط", "ثانوي", "دبلوم", "بكالوريوس", "ماجستير", "دكتوراه" })
+            {
+                <option value="@lvl">@lvl</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label asp-for="EducationMajor" class="auth-label">@L.L("التخصص", "Major")</label>
+        <input asp-for="EducationMajor" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EducationInstitution" class="auth-label">@L.L("اسم المؤسسة التعليمية", "Institution")</label>
+        <input asp-for="EducationInstitution" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EducationCountry" class="auth-label">@L.L("بلد التعليم", "Country of education")</label>
+        <input asp-for="EducationCountry" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="GraduationYear" class="auth-label">@L.L("سنة التخرج", "Graduation year")</label>
+        <input asp-for="GraduationYear" type="number" min="1950" max="2100" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="Gpa" class="auth-label">@L.L("المعدل التراكمي (GPA)", "GPA")</label>
+        <input asp-for="Gpa" type="number" step="0.01" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="CertificateNumber" class="auth-label">@L.L("رقم/تاريخ الشهادة", "Certificate number/date")</label>
+        <input asp-for="CertificateNumber" class="auth-input" />
+    </div>
+    <div class="text-xs text-muted flex items-end">
+        <i class="fa-solid fa-circle-info me-1"></i>
+        @L.L("أرفق الشهادة الدراسية من تبويب الوثائق الرسمية.", "Attach the certificate from the Official Documents tab.")
+    </div>
+</div>

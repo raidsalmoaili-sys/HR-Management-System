@@ -1,0 +1,1083 @@
+@model Project_HR_1.Models.ViewModels.Entry.LauncherVM
+@using Project_HR_1.Services.Scope
+@{
+    ViewData["Title"] = "HR Services Hub";
+    Layout = "_Layout";
+
+    var allCategories = Model.Categories;
+    var allServices   = Model.Services;
+    var activeCat     = Model.Category;
+    var searchQ       = Model.Search ?? "";
+
+    var pinnedIds = new[] { "dashboard", "employees", "attendance", "leaves", "payroll", "tasks", "alerts", "org-structure" };
+    var pinnedServices = Project_HR_1.Models.Hr.ServiceCatalog.Services
+        .Where(s => pinnedIds.Contains(s.Id) && Model.AllowedServiceIds.Contains(s.Id))
+        .ToList();
+
+    var statsCards = new[]
+    {
+        new { Icon = "fa-users",               Color = "#1a2744", BgLight = "#eef0f6", Label = L.L("إجمالي الموظفين", "Total Employees"), Value = Model.Stats.TotalEmployees.ToString() },
+        new { Icon = "fa-user-tie",            Color = "#0d9488", BgLight = "#e6faf8", Label = L.L("سعوديون",          "Saudis"),          Value = Model.Stats.SaudiCount.ToString() },
+        new { Icon = "fa-earth-americas",      Color = "#2563eb", BgLight = "#eff6ff", Label = L.L("غير سعوديين",      "Non-Saudis"),      Value = Model.Stats.NonSaudiCount.ToString() },
+        new { Icon = "fa-fingerprint",         Color = "#7c3aed", BgLight = "#f5f3ff", Label = L.L("حضور اليوم",       "Today's Attendance"), Value = Model.Stats.AttendanceToday > 0 ? Model.Stats.AttendanceToday.ToString() : "—" },
+        new { Icon = "fa-umbrella-beach",      Color = "#0891b2", BgLight = "#ecfeff", Label = L.L("إجازات نشطة",      "Active Leaves"),    Value = Model.Stats.ActiveLeaves > 0 ? Model.Stats.ActiveLeaves.ToString() : "—" },
+        new { Icon = "fa-triangle-exclamation",Color = "#dc2626", BgLight = "#fef2f2", Label = L.L("تنبيهات حرجة",    "Critical Alerts"),  Value = Model.Stats.PendingAlerts.ToString() },
+    };
+
+    var docTypeLabels = new Dictionary<string, (string Ar, string En, string Icon, string Color)>
+    {
+        ["iqama"]       = ("إقامة",      "Iqama",       "fa-id-card",     "#7c3aed"),
+        ["national-id"] = ("هوية وطنية", "National ID", "fa-address-card","#0d9488"),
+        ["passport"]    = ("جواز سفر",   "Passport",    "fa-passport",    "#2563eb"),
+        ["contract"]    = ("عقد عمل",    "Contract",    "fa-file-contract","#d97706"),
+    };
+
+    string scopeLabel, scopeSubLabel, scopeIcon;
+    string scopeColor = Model.Scope.Level switch {
+        ScopeLevel.Branch  => "#0d9488",
+        ScopeLevel.Company => "#c8a84b",
+        _                  => "#7c3aed",
+    };
+    if (Model.Scope.Level == ScopeLevel.Branch && Model.ScopeCompany != null && Model.ScopeBranch != null)
+    {
+        scopeIcon     = "fa-code-branch";
+        scopeLabel    = L.L(Model.ScopeCompany.NameAr, Model.ScopeCompany.NameEn);
+        scopeSubLabel = L.L(Model.ScopeBranch.NameAr ?? "", Model.ScopeBranch.NameEn ?? "");
+    }
+    else if (Model.Scope.Level == ScopeLevel.Company && Model.ScopeCompany != null)
+    {
+        scopeIcon     = "fa-building";
+        scopeLabel    = L.L(Model.ScopeCompany.NameAr, Model.ScopeCompany.NameEn);
+        scopeSubLabel = L.L("نطاق الشركة", "Company scope");
+    }
+    else
+    {
+        scopeIcon     = "fa-globe";
+        scopeLabel    = L.L("كل الشركات", "All Companies");
+        scopeSubLabel = L.L("نطاق عام", "Global scope");
+    }
+}
+
+<div class="db-shell">
+
+    
+    <aside class="db-sidebar">
+        <div class="db-sidebar-inner">
+
+        <div class="db-sidebar-top">
+            <div class="db-sidebar-logo">
+                <div class="db-sidebar-logo-ico">
+                    <i class="fa-solid fa-chart-pie"></i>
+                </div>
+                <div class="db-sidebar-logo-txt">
+                    <div class="db-sidebar-logo-title">@L.L("الموارد البشرية", "HR System")</div>
+                    <div class="db-sidebar-logo-sub">@L.L("لوحة التحكم", "Dashboard")</div>
+                </div>
+            </div>
+            <div class="db-sidebar-scope-pill" style="--sc:@scopeColor">
+                <i class="fa-solid @scopeIcon"></i>
+                <span>@scopeLabel</span>
+            </div>
+        </div>
+
+        <div class="db-search-wrap">
+            <form method="get" action="@Url.Action("Launcher", "Entry")">
+                <div class="db-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" name="q" value="@searchQ"
+                           placeholder="@L.L("بحث في الخدمات…", "Search services…")" />
+                </div>
+            </form>
+        </div>
+
+        <nav class="db-nav">
+            <a asp-action="Launcher" asp-route-q="@searchQ"
+               class="db-nav-item @(string.IsNullOrEmpty(activeCat) && string.IsNullOrEmpty(searchQ) ? "is-active" : "")">
+                <span class="db-nav-icon" style="--ic:#1a2744">
+                    <i class="fa-solid fa-house"></i>
+                </span>
+                <span class="db-nav-label">@L.L("الرئيسية", "Home")</span>
+            </a>
+
+            <div class="db-nav-sep">@L.L("الخدمات", "Services")</div>
+
+            @foreach (var cat in allCategories)
+            {
+                var catItems = Project_HR_1.Models.Hr.ServiceCatalog.ByCategory(cat.Id)
+                               .Where(s => Model.AllowedServiceIds.Contains(s.Id)).ToList();
+                if (catItems.Count == 0) continue;
+                var cIcon  = catItems.First().Icon;
+                var cColor = catItems.First().Color;
+                var isAct  = activeCat == cat.Id;
+
+                <div class="db-nav-group @(isAct ? "is-open" : "")">
+                    <div class="db-nav-item @(isAct ? "is-active" : "") db-nav-cat-toggle">
+                        <span class="db-nav-cat-link">
+                            <span class="db-nav-icon" style="--ic:@cColor">
+                                <i class="fa-solid @cIcon"></i>
+                            </span>
+                            <span class="db-nav-label">@L.L(cat.NameAr, cat.NameEn)</span>
+                        </span>
+                        <span class="db-nav-badge">@catItems.Count</span>
+                        <button type="button" class="db-nav-toggle" aria-label="@L.L("تبديل","toggle")">
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </button>
+                    </div>
+                    <div class="db-nav-sub">
+                        @foreach (var svc in catItems)
+                        {
+                            <a asp-controller="Service" asp-action="Show" asp-route-id="@svc.Id"
+                               class="db-nav-sub-item">
+                                <span class="db-sub-dot" style="background:@svc.Color"></span>
+                                <span class="db-sub-label">@L.L(svc.NameAr, svc.NameEn)</span>
+                                @if (svc.Badge.HasValue)
+                                { <span class="db-nav-sub-badge">@svc.Badge</span> }
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </nav>
+
+        <div class="db-sidebar-footer">
+            <div class="db-sidebar-footer-info">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>@L.L("النطاق الحالي", "Current Scope"): @scopeLabel</span>
+            </div>
+            <form method="post" asp-action="ChangeContext">
+                <button type="submit" class="db-switch-btn">
+                    <i class="fa-solid fa-right-left"></i>
+                    @L.L("تغيير النطاق", "Switch Scope")
+                </button>
+            </form>
+        </div>
+        </div>@* end db-sidebar-inner *@
+    </aside>
+
+    <div class="db-main">
+
+        @{/* Dashboard always visible */}
+            <div class="db-scope-bar" style="--sc:@scopeColor">
+                <div class="db-scope-ico"><i class="fa-solid @scopeIcon"></i></div>
+                <div class="db-scope-txt">
+                    <p class="db-scope-eyebrow">@L.L("النطاق الحالي", "Current Scope")</p>
+                    <h2 class="db-scope-name">@scopeLabel</h2>
+                    @if (!string.IsNullOrEmpty(scopeSubLabel))
+                    { <p class="db-scope-sub">@scopeSubLabel</p> }
+                </div>
+            </div>
+
+            
+            @* ── Stats Row ── *@
+            <div class="db-section-label">@L.L("نظرة عامة", "Overview")</div>
+            <div class="db-stats-row">
+                @foreach (var s in statsCards)
+                {
+                    <div class="db-stat" style="--sc:@s.Color;--sl:@s.BgLight">
+                        <div class="db-stat-ico"><i class="fa-solid @s.Icon"></i></div>
+                        <div class="db-stat-body">
+                            <div class="db-stat-val">@s.Value</div>
+                            <div class="db-stat-lbl">@s.Label</div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            @* ── Quick Access ── *@
+            @if (pinnedServices.Any())
+            {
+                <div class="db-section-label">@L.L("وصول سريع", "Quick Access")</div>
+                <div class="db-quick-grid">
+                    @foreach (var svc in pinnedServices)
+                    {
+                        <a asp-controller="Service" asp-action="Show" asp-route-id="@svc.Id"
+                           class="db-quick-tile" style="--sc:@svc.Color">
+                            @if (svc.Badge.HasValue)
+                            { <span class="db-quick-badge">@svc.Badge</span> }
+                            <div class="db-quick-ico"><i class="fa-solid @svc.Icon"></i></div>
+                            <div class="db-quick-name">@L.L(svc.NameAr, svc.NameEn)</div>
+                        </a>
+                    }
+                </div>
+            }
+
+            @* ── Data-quality alerts: each row opens the employee page to fix it manually ── *@
+            @if (Model.DataIssues.Any())
+            {
+                var kinds = new[]
+                {
+                    ("no-id",       L.L("بدون رقم هوية/إقامة", "No ID / Iqama"),          "fa-id-card",           "#dc2626"),
+                    ("no-branch",   L.L("بدون فرع",             "No branch"),              "fa-code-branch",       "#d97706"),
+                    ("id-mismatch", L.L("الجنسية لا تطابق نوع الرقم", "Nationality ≠ ID type"), "fa-triangle-exclamation", "#7c3aed"),
+                };
+                <div class="db-section-label">@L.L("بيانات موظفين تحتاج إكمال", "Employee data to complete")</div>
+                <div class="db-widget mb-6" id="data-issues">
+                    <div class="db-widget-head">
+                        <div class="db-widget-title">
+                            <i class="fa-solid fa-bell" style="color:#dc2626"></i>
+                            @L.L("اضغط على الموظف لفتح صفحته وإكمال بياناته", "Click an employee to open and fix their record")
+                        </div>
+                        <span class="db-widget-badge db-widget-badge--red">@Model.DataIssues.Count</span>
+                    </div>
+                    <div class="di-chips">
+                        @foreach (var k in kinds)
+                        {
+                            var n = Model.DataIssues.Count(d => d.Kind == k.Item1);
+                            if (n == 0) continue;
+                            <button type="button" class="di-chip" data-kind="@k.Item1" style="--dc:@k.Item4">
+                                <i class="fa-solid @k.Item3"></i> @k.Item2 <strong>@n</strong>
+                            </button>
+                        }
+                    </div>
+                    <div class="di-list">
+                        @foreach (var d in Model.DataIssues.OrderBy(d => d.Kind).ThenBy(d => d.NameAr))
+                        {
+                            var k = kinds.First(x => x.Item1 == d.Kind);
+                            <a asp-controller="Employees" asp-action="Detail" asp-route-id="@d.EmployeeId" class="di-row" data-kind="@d.Kind">
+                                <span class="di-ico" style="--dc:@k.Item4"><i class="fa-solid @k.Item3"></i></span>
+                                <span class="di-name">@L.L(d.NameAr, d.NameEn)</span>
+                                <span class="di-code">#@d.EmployeeCode</span>
+                                <span class="di-note">@d.Note</span>
+                                <i class="fa-solid fa-chevron-left di-go"></i>
+                            </a>
+                        }
+                    </div>
+                </div>
+                <style>
+                    .di-chips { display:flex; flex-wrap:wrap; gap:.5rem; padding:.25rem 0 .75rem; }
+                    .di-chip { display:inline-flex; align-items:center; gap:.4rem; border:1px solid color-mix(in srgb, var(--dc) 35%, transparent);
+                               color:var(--dc); background:color-mix(in srgb, var(--dc) 8%, transparent); border-radius:999px; padding:.3rem .8rem; font-size:.8rem; cursor:pointer; }
+                    .di-chip.active { background:var(--dc); color:#fff; }
+                    .di-list { max-height:360px; overflow:auto; display:flex; flex-direction:column; }
+                    .di-row { display:flex; align-items:center; gap:.75rem; padding:.55rem .5rem; border-top:1px solid #f1f5f9; color:inherit; text-decoration:none; font-size:.85rem; }
+                    .di-row:hover { background:#f8fafc; }
+                    .di-ico { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; color:var(--dc); background:color-mix(in srgb, var(--dc) 12%, transparent); flex-shrink:0; }
+                    .di-name { font-weight:600; }
+                    .di-code { color:#94a3b8; font-size:.75rem; }
+                    .di-note { color:#64748b; margin-inline-start:auto; font-size:.78rem; }
+                    .di-go { color:#cbd5e1; font-size:.7rem; }
+                    [dir="ltr"] .di-go { transform:scaleX(-1); }
+                </style>
+                <script>
+                (function () {
+                    const root = document.getElementById('data-issues'); if (!root) return;
+                    const chips = root.querySelectorAll('.di-chip'), rows = root.querySelectorAll('.di-row');
+                    chips.forEach(c => c.addEventListener('click', () => {
+                        const on = !c.classList.contains('active');
+                        chips.forEach(x => x.classList.remove('active'));
+                        if (on) c.classList.add('active');
+                        rows.forEach(r => r.style.display = (!on || r.dataset.kind === c.dataset.kind) ? '' : 'none');
+                    }));
+                })();
+                </script>
+            }
+
+            @* ── Document Alerts + Nationality Chart ── *@
+            <div class="db-section-label">@L.L("تنبيهات المستندات", "Document Alerts")</div>
+            <div class="db-widgets-row">
+
+                <div class="db-widget db-widget--lg">
+                    <div class="db-widget-head">
+                        <div class="db-widget-title">
+                            <i class="fa-solid fa-triangle-exclamation" style="color:#dc2626"></i>
+                            @L.L("انتهاء المستندات خلال 90 يوماً", "Documents Expiring within 90 Days")
+                        </div>
+                        @if (Model.ExpiryAlerts.Any())
+                        { <span class="db-widget-badge db-widget-badge--red">@Model.ExpiryAlerts.Count</span> }
+                    </div>
+                    @if (!Model.ExpiryAlerts.Any())
+                    {
+                        <div class="db-widget-empty">
+                            <i class="fa-solid fa-circle-check" style="color:#22c55e;font-size:2rem"></i>
+                            <p>@L.L("لا توجد مستندات منتهية الصلاحية قريباً", "No documents expiring soon")</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="db-alert-table-wrap">
+                            <table class="db-alert-table">
+                                <thead>
+                                    <tr>
+                                        <th>@L.L("الموظف", "Employee")</th>
+                                        <th>@L.L("نوع المستند", "Document")</th>
+                                        <th>@L.L("تاريخ الانتهاء", "Expiry")</th>
+                                        <th>@L.L("المتبقي", "Days")</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var alert in Model.ExpiryAlerts.Take(10))
+                                    {
+                                        var docInfo = docTypeLabels.GetValueOrDefault(alert.DocType,
+                                            ("مستند", "Document", "fa-file", "#64748b"));
+                                        <tr class="db-alert-row db-alert-row--@alert.Urgency">
+                                            <td>
+                                                <div class="db-alert-emp">
+                                                    <div class="db-alert-avatar">@(alert.NameAr.Length >= 2 ? alert.NameAr[..2] : alert.NameAr)</div>
+                                                    <span>@L.L(alert.NameAr, alert.NameEn)</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="db-doc-chip" style="--dc:@docInfo.Item4">
+                                                    <i class="fa-solid @docInfo.Item3"></i>
+                                                    @L.L(docInfo.Item1, docInfo.Item2)
+                                                </span>
+                                            </td>
+                                            <td class="db-alert-date">@alert.ExpiryDate.ToString("dd/MM/yyyy")</td>
+                                            <td>
+                                                <span class="db-days-badge db-days-badge--@alert.Urgency">
+                                                    @alert.DaysLeft @L.L("يوم", "d")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <div class="db-widget db-widget--sm">
+                    <div class="db-widget-head">
+                        <div class="db-widget-title">
+                            <i class="fa-solid fa-earth-americas" style="color:#2563eb"></i>
+                            @L.L("توزيع الجنسيات", "Nationality Mix")
+                        </div>
+                    </div>
+                    @if (!Model.NationalityBreakdown.Any())
+                    {
+                        <div class="db-widget-empty">
+                            <i class="fa-solid fa-chart-pie" style="color:#cbd5e1;font-size:2rem"></i>
+                            <p>@L.L("لا توجد بيانات", "No data yet")</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="db-chart-wrap"><canvas id="natChart" height="200"></canvas></div>
+                        <div class="db-chart-legend">
+                            @{ var natColors = new[]{"#1a2744","#0d9488","#2563eb","#7c3aed","#d97706","#dc2626"}; }
+                            @for (int ni = 0; ni < Model.NationalityBreakdown.Count; ni++)
+                            {
+                                var nb = Model.NationalityBreakdown[ni];
+                                <div class="db-legend-item">
+                                    <span class="db-legend-dot" style="background:@natColors[ni % natColors.Length]"></span>
+                                    <span class="db-legend-lbl">@nb.Label</span>
+                                    <span class="db-legend-val">@nb.Count</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* ── Dept Chart + Expiry Summary ── *@
+            <div class="db-section-label">@L.L("تحليلات القوى العاملة", "Workforce Analytics")</div>
+            <div class="db-widgets-row">
+
+                <div class="db-widget db-widget--md">
+                    <div class="db-widget-head">
+                        <div class="db-widget-title">
+                            <i class="fa-solid fa-sitemap" style="color:#7c3aed"></i>
+                            @L.L("توزيع الأقسام", "Department Headcount")
+                        </div>
+                    </div>
+                    @if (!Model.DeptBreakdown.Any())
+                    {
+                        <div class="db-widget-empty">
+                            <i class="fa-solid fa-chart-bar" style="color:#cbd5e1;font-size:2rem"></i>
+                            <p>@L.L("لا توجد بيانات أقسام", "No department data yet")</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="db-chart-wrap"><canvas id="deptChart" height="200"></canvas></div>
+                    }
+                </div>
+
+                <div class="db-widget db-widget--md">
+                    <div class="db-widget-head">
+                        <div class="db-widget-title">
+                            <i class="fa-solid fa-clock" style="color:#d97706"></i>
+                            @L.L("ملخص انتهاء المستندات", "Expiry Summary")
+                        </div>
+                    </div>
+                    <div class="db-expiry-summary">
+                        @{
+                            var docSummary = new[]
+                            {
+                                new { Key="iqama",       Ar="إقامة",      En="Iqama",       Icon="fa-id-card",       Color="#7c3aed" },
+                                new { Key="national-id", Ar="هوية وطنية", En="National ID", Icon="fa-address-card",  Color="#0d9488" },
+                                new { Key="passport",    Ar="جواز سفر",   En="Passport",    Icon="fa-passport",      Color="#2563eb" },
+                                new { Key="contract",    Ar="عقد عمل",    En="Contract",    Icon="fa-file-contract", Color="#d97706" },
+                            };
+                        }
+                        @foreach (var ds in docSummary)
+                        {
+                            var cnt      = Model.ExpiryAlerts.Count(a => a.DocType == ds.Key);
+                            var critical = Model.ExpiryAlerts.Count(a => a.DocType == ds.Key && a.Urgency == "critical");
+                            var warning  = Model.ExpiryAlerts.Count(a => a.DocType == ds.Key && a.Urgency == "warning");
+                            <div class="db-expiry-card" style="--dc:@ds.Color">
+                                <div class="db-expiry-ico"><i class="fa-solid @ds.Icon"></i></div>
+                                <div class="db-expiry-info">
+                                    <div class="db-expiry-name">@L.L(ds.Ar, ds.En)</div>
+                                    <div class="db-expiry-chips">
+                                        @if (critical > 0)
+                                        { <span class="db-chip db-chip--red">@critical @L.L("حرج","crit")</span> }
+                                        @if (warning > 0)
+                                        { <span class="db-chip db-chip--orange">@warning @L.L("تحذير","warn")</span> }
+                                        @if (cnt == 0)
+                                        { <span class="db-chip db-chip--green">@L.L("لا شيء","OK")</span> }
+                                    </div>
+                                </div>
+                                <div class="db-expiry-total">@cnt</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+    </div>
+</div>
+
+@section Scripts {
+<style>
+/* ── lock the page itself from scrolling ── */
+html, body { overflow: hidden !important; height: 100% !important; }
+.page-area { padding: 0 !important; max-width: 100% !important; overflow: hidden !important; height: calc(100vh - 64px) !important; }
+
+/* ══════════════════════════════════════════
+   SHELL — fixed viewport height, no page scroll
+══════════════════════════════════════════ */
+.db-shell {
+    display: flex;
+    height: calc(100vh - 64px);
+    overflow: hidden;
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════ */
+.db-sidebar {
+    width: 248px;
+    flex-shrink: 0;
+    background: #ffffff;
+    border-inline-end: 1px solid #e2e8f0;
+    box-shadow: 2px 0 8px rgba(0,0,0,.06);
+}
+.db-sidebar-inner {
+    position: sticky;
+    top: 64px;
+    height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+.db-sidebar-inner::-webkit-scrollbar { width: 4px; }
+.db-sidebar-inner::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+/* top block */
+.db-sidebar-top {
+    padding: .75rem .875rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+}
+.db-sidebar-logo {
+    display: flex; align-items: center; gap: .625rem;
+    margin-bottom: .625rem;
+}
+.db-sidebar-logo-ico {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, #1a3a6b, #2563eb);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .9rem; flex-shrink: 0;
+    box-shadow: 0 2px 10px rgba(37,99,235,.35);
+}
+.db-sidebar-logo-title {
+    font-size: .82rem; font-weight: 700; color: #0f172a;
+    line-height: 1.2;
+}
+.db-sidebar-logo-sub {
+    font-size: .65rem; color: #94a3b8; margin-top: 1px;
+    text-transform: uppercase; letter-spacing: .06em;
+}
+.db-sidebar-scope-pill {
+    display: flex; align-items: center; gap: .4rem;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 7px; padding: .35rem .625rem;
+    font-size: .72rem; color: #475569;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.db-sidebar-scope-pill i { color: #2563eb; font-size: .7rem; flex-shrink: 0; }
+
+/* search */
+.db-search-wrap { padding: .75rem .875rem .5rem; }
+.db-search { position: relative; }
+.db-search i {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    inset-inline-start: .75rem; color: #94a3b8; font-size: .75rem; pointer-events: none;
+}
+.db-search input {
+    width: 100%; padding: .45rem .75rem; padding-inline-start: 2.1rem;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+    font-size: .82rem; color: #1e293b; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+}
+.db-search input::placeholder { color: #94a3b8; }
+.db-search input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    background: #ffffff;
+}
+
+/* nav */
+.db-nav { display: flex; flex-direction: column; padding: .375rem .5rem; gap: 2px; flex: 1; }
+
+.db-nav-sep {
+    font-size: .62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .09em; color: #94a3b8;
+    padding: .875rem .625rem .3rem;
+}
+.db-nav-item {
+    display: flex; align-items: center; gap: .65rem;
+    padding: .5rem .625rem; border-radius: 9px;
+    text-decoration: none; color: #475569; font-size: .83rem; font-weight: 500;
+    transition: background .12s, color .12s;
+}
+.db-nav-item:hover { background: #f1f5f9; color: #1e293b; text-decoration: none; }
+.db-nav-item.is-active {
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 #2563eb;
+}
+[dir="rtl"] .db-nav-item.is-active { box-shadow: inset -3px 0 0 #2563eb; }
+
+.db-nav-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--ic, #64748b);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .74rem; flex-shrink: 0;
+    opacity: .85;
+}
+.db-nav-item.is-active .db-nav-icon { opacity: 1; }
+.db-nav-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.db-nav-badge {
+    font-size: .62rem; font-weight: 700;
+    background: #f1f5f9; color: #64748b;
+    padding: 1px 7px; border-radius: 100px;
+    border: 1px solid #e2e8f0;
+}
+.db-nav-item.is-active .db-nav-badge { background: #dbeafe; color: #2563eb; border-color: transparent; }
+
+/* ── ACCORDION NAV GROUPS ── */
+.db-nav-group .db-nav-item {
+    padding-top: 0; padding-bottom: 0;
+    padding-inline-start: 0; padding-inline-end: .5rem;
+}
+.db-nav-cat-link {
+    display: flex; align-items: center; gap: .65rem;
+    flex: 1; min-width: 0;
+    padding: .5rem 0 .5rem .625rem;
+    text-decoration: none; color: inherit;
+}
+.db-nav-cat-link:hover, .db-nav-cat-link:focus { text-decoration: none; color: inherit; outline: none; }
+.db-nav-cat-toggle { cursor: pointer; }
+.db-nav-toggle {
+    background: none; border: none; cursor: pointer;
+    color: #94a3b8; font-size: .65rem;
+    padding: .25rem .375rem; border-radius: 5px;
+    transition: color .12s, background .12s;
+    flex-shrink: 0; line-height: 1;
+}
+.db-nav-toggle:hover { color: #475569; background: #f1f5f9; }
+.db-nav-toggle i { transition: transform .2s ease; display: block; }
+.db-nav-group.is-open .db-nav-toggle i { transform: rotate(180deg); }
+.db-nav-sub {
+    display: none; flex-direction: column;
+    margin: .25rem 0 .25rem .875rem;
+    padding-inline-start: .75rem;
+    border-inline-start: 2px solid #e2e8f0;
+    gap: 1px;
+}
+.db-nav-group.is-open .db-nav-sub { display: flex; }
+.db-nav-sub-item {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .35rem .625rem; border-radius: 7px;
+    text-decoration: none; color: #64748b; font-size: .78rem; font-weight: 500;
+    transition: background .12s, color .12s;
+}
+.db-nav-sub-item:hover { background: #f1f5f9; color: #1e293b; text-decoration: none; }
+.db-sub-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.db-sub-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-nav-sub-badge {
+    font-size: .6rem; font-weight: 700;
+    background: #ef4444; color: #fff;
+    padding: 1px 6px; border-radius: 100px; flex-shrink: 0;
+}
+
+/* footer */
+.db-sidebar-footer {
+    padding: .875rem 1rem 1rem;
+    border-top: 1px solid #e2e8f0;
+    margin-top: auto;
+    background: #f8fafc;
+}
+.db-sidebar-footer-info {
+    display: flex; align-items: center; gap: .4rem;
+    font-size: .7rem; color: #94a3b8; margin-bottom: .625rem;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.db-sidebar-footer-info i { color: #cbd5e1; flex-shrink: 0; }
+.db-switch-btn {
+    width: 100%; display: flex; align-items: center; justify-content: center; gap: .5rem;
+    padding: .6rem 1rem; border-radius: 9px;
+    background: #ffffff; border: 1px solid #e2e8f0;
+    color: #475569; font-size: .82rem; font-weight: 600;
+    cursor: pointer; transition: all .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.db-switch-btn:hover {
+    background: #eff6ff; color: #1d4ed8; border-color: #93c5fd;
+    box-shadow: 0 2px 8px rgba(37,99,235,.15);
+}
+
+/* ══════════════════════════════════════════
+   MAIN AREA
+══════════════════════════════════════════ */
+.db-main {
+    flex: 1; min-width: 0;
+    height: 100%;
+    background: #f1f5f9;
+    padding: 1.5rem 1.75rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+/* section label */
+.db-section-label {
+    font-size: .65rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: .12em; color: #64748b;
+    margin: 1.5rem 0 .75rem;
+    display: flex; align-items: center; gap: .5rem;
+}
+.db-section-label:first-child { margin-top: 0; }
+.db-section-label::after {
+    content: ''; flex: 1; height: 1px; background: #e2e8f0;
+}
+
+/* ── SCOPE BAR ── */
+.db-scope-bar {
+    display: flex; align-items: center; gap: 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    position: relative; overflow: hidden;
+}
+.db-scope-bar::before {
+    content: '';
+    position: absolute; inset-inline-start: 0; top: 0; bottom: 0;
+    width: 4px; background: var(--sc, #7c3aed);
+    border-radius: 0 2px 2px 0;
+}
+[dir="rtl"] .db-scope-bar::before { border-radius: 2px 0 0 2px; }
+.db-scope-ico {
+    width: 44px; height: 44px; border-radius: 11px;
+    background: var(--sc, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.1rem; flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.db-scope-txt { flex: 1; }
+.db-scope-eyebrow { font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #94a3b8; margin: 0; }
+.db-scope-name { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 2px 0 0; }
+.db-scope-sub  { font-size: .78rem; color: #64748b; margin: 1px 0 0; }
+
+/* ── STATS ── */
+.db-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: .875rem;
+    margin-bottom: .5rem;
+}
+.db-stat {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    position: relative; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    transition: transform .15s, box-shadow .15s;
+}
+.db-stat:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.08); }
+.db-stat::after {
+    content: '';
+    position: absolute; inset-inline-end: -12px; top: -12px;
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--sl, #f1f5f9);
+    pointer-events: none;
+}
+.db-stat-ico {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: var(--sc, #1a2744);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.1rem; flex-shrink: 0;
+    z-index: 1;
+}
+.db-stat-body { flex: 1; z-index: 1; }
+.db-stat-val {
+    font-size: 1.6rem; font-weight: 800; color: #0f172a;
+    line-height: 1; margin-bottom: 3px;
+    font-variant-numeric: tabular-nums;
+}
+.db-stat-lbl { font-size: .75rem; color: #64748b; font-weight: 500; }
+
+/* ── QUICK ACCESS ── */
+.db-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: .75rem;
+    margin-bottom: .5rem;
+}
+.db-quick-tile {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-top: 3px solid var(--sc, #1a2744);
+    border-radius: 12px;
+    padding: 1.1rem .75rem .95rem;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center; gap: .6rem;
+    text-decoration: none;
+    transition: transform .15s, box-shadow .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.db-quick-tile:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    text-decoration: none;
+}
+.db-quick-badge {
+    position: absolute; top: .4rem; inset-inline-end: .4rem;
+    font-size: .6rem; font-weight: 700;
+    background: #ef4444; color: #fff;
+    min-width: 18px; height: 18px; border-radius: 100px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px;
+}
+.db-quick-ico {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: var(--sc, #1a2744);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.1rem;
+    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+}
+.db-quick-name { font-size: .78rem; font-weight: 700; color: #1e293b; line-height: 1.3; }
+
+/* ── ALL CATEGORIES ── */
+.db-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: .625rem;
+}
+.db-cat-card {
+    display: flex; align-items: center; gap: .875rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: .875rem 1rem;
+    text-decoration: none; color: #475569;
+    transition: all .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.db-cat-card:hover {
+    background: #f8fafc;
+    box-shadow: 0 4px 14px rgba(0,0,0,.07);
+    text-decoration: none; color: #1e293b;
+    transform: translateY(-1px);
+}
+.db-cat-ico {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--sc, #1a2744);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: .9rem; flex-shrink: 0;
+}
+.db-cat-info { flex: 1; min-width: 0; }
+.db-cat-name { font-size: .86rem; font-weight: 600; color: #1e293b; }
+.db-cat-cnt  { font-size: .72rem; color: #94a3b8; margin-top: 1px; }
+.db-cat-arr  { font-size: .68rem; color: #cbd5e1; }
+
+/* ── FILTER HEAD ── */
+.db-filter-head {
+    display: flex; align-items: center; gap: .875rem;
+    margin-bottom: 1.25rem;
+}
+.db-back-btn {
+    display: flex; align-items: center; gap: .4rem;
+    padding: .45rem .875rem; border-radius: 8px;
+    background: #fff; border: 1px solid #e2e8f0;
+    font-size: .82rem; font-weight: 600; color: #475569;
+    text-decoration: none;
+    transition: all .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.db-back-btn:hover { background: #f8fafc; color: #1e293b; text-decoration: none; }
+.db-filter-title {
+    font-size: 1.05rem; font-weight: 700; color: #0f172a;
+}
+.db-filter-q { font-weight: 400; color: #94a3b8; font-size: .9rem; margin-inline-start: .25rem; }
+.db-filter-cnt { margin-inline-start: auto; font-size: .75rem; color: #94a3b8; background: #f1f5f9; padding: 3px 10px; border-radius: 100px; }
+
+/* ── SERVICE LIST ── */
+.db-svc-list { display: flex; flex-direction: column; gap: .5rem; }
+.db-svc-row {
+    display: flex; align-items: center; gap: 1rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: .875rem 1.125rem;
+    text-decoration: none; color: #475569;
+    transition: all .15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    position: relative; overflow: hidden;
+}
+.db-svc-row::before {
+    content: '';
+    position: absolute; inset-inline-start: 0; top: 0; bottom: 0;
+    width: 3px; background: var(--sc, #1a2744);
+    opacity: 0; transition: opacity .15s;
+}
+.db-svc-row:hover { background: #f8fafc; box-shadow: 0 4px 14px rgba(0,0,0,.07); text-decoration: none; color: #1e293b; }
+.db-svc-row:hover::before { opacity: 1; }
+.db-svc-row.is-locked { opacity: .45; pointer-events: none; }
+.db-svc-ico {
+    width: 42px; height: 42px; border-radius: 11px;
+    background: var(--sc, #1a2744);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1rem; flex-shrink: 0;
+}
+.db-svc-body { flex: 1; min-width: 0; }
+.db-svc-name { font-size: .9rem; font-weight: 600; color: #1e293b; }
+.db-svc-cat  { font-size: .73rem; color: #94a3b8; margin-top: 2px; }
+.db-svc-badge {
+    font-size: .68rem; font-weight: 700;
+    background: #ef4444; color: #fff;
+    padding: 2px 9px; border-radius: 100px; flex-shrink: 0;
+}
+.db-svc-lock { color: #94a3b8; font-size: .8rem; }
+.db-svc-arr  { color: #cbd5e1; font-size: .72rem; }
+
+/* ── EMPTY ── */
+.db-empty {
+    text-align: center; padding: 4rem 1rem;
+    color: #94a3b8;
+}
+.db-empty-ico {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #f1f5f9;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; color: #cbd5e1;
+    margin: 0 auto 1rem;
+}
+.db-empty h3 { font-size: 1rem; font-weight: 700; color: #64748b; margin-bottom: .4rem; }
+.db-empty p  { font-size: .85rem; }
+
+/* ── RESPONSIVE ── */
+@@media (max-width: 1100px) {
+    .db-stats-row   { grid-template-columns: repeat(2, 1fr); }
+    .db-widgets-row { flex-direction: column; }
+    .db-widget--lg, .db-widget--sm, .db-widget--md { flex: none; width: 100%; }
+}
+@@media (max-width: 768px) {
+    .db-shell { flex-direction: column; }
+    .db-sidebar { width: 100%; border-inline-end: none; border-bottom: 1px solid #e2e8f0; }
+    .db-sidebar-inner { position: relative; top: 0; height: auto; }
+    .db-nav { flex-direction: row; flex-wrap: wrap; }
+    .db-nav-item { flex: none; }
+    .db-nav-label, .db-nav-sep { display: none; }
+    .db-stats-row { grid-template-columns: repeat(2, 1fr); }
+    .db-main { padding: 1rem; }
+}
+
+/* ══════════════════════════════════════════
+   DASHBOARD WIDGETS
+══════════════════════════════════════════ */
+.db-widgets-row {
+    display: flex; gap: .875rem; align-items: flex-start;
+    margin-bottom: .5rem;
+}
+.db-widget {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    display: flex; flex-direction: column; overflow: hidden;
+}
+.db-widget--lg { flex: 2; min-width: 0; }
+.db-widget--sm { flex: 1; min-width: 220px; }
+.db-widget--md { flex: 1; min-width: 0; }
+
+.db-widget-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: .875rem 1rem; border-bottom: 1px solid #f1f5f9;
+}
+.db-widget-title {
+    font-size: .82rem; font-weight: 700; color: #1e293b;
+    display: flex; align-items: center; gap: .5rem;
+}
+.db-widget-badge {
+    font-size: .65rem; font-weight: 800;
+    padding: 2px 8px; border-radius: 100px;
+}
+.db-widget-badge--red { background: #fef2f2; color: #dc2626; }
+
+.db-widget-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: .5rem; padding: 2rem 1rem;
+    color: #94a3b8; font-size: .82rem; text-align: center;
+}
+
+/* alert table */
+.db-alert-table-wrap { overflow-x: auto; }
+.db-alert-table {
+    width: 100%; border-collapse: collapse; font-size: .8rem;
+}
+.db-alert-table thead tr {
+    background: #f8fafc;
+}
+.db-alert-table th {
+    padding: .55rem .875rem; text-align: start;
+    font-size: .68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: #94a3b8;
+    border-bottom: 1px solid #f1f5f9;
+}
+.db-alert-table td { padding: .65rem .875rem; border-bottom: 1px solid #f8fafc; }
+.db-alert-row--critical td:first-child { border-inline-start: 3px solid #dc2626; }
+.db-alert-row--warning  td:first-child { border-inline-start: 3px solid #f59e0b; }
+.db-alert-row--soon     td:first-child { border-inline-start: 3px solid #3b82f6; }
+
+.db-alert-emp { display: flex; align-items: center; gap: .5rem; }
+.db-alert-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #1a2744; color: #fff;
+    font-size: .65rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.db-doc-chip {
+    display: inline-flex; align-items: center; gap: .3rem;
+    background: #f8fafc;
+    color: var(--dc); border: 1px solid #e2e8f0;
+    padding: 2px 8px; border-radius: 100px; font-size: .72rem; font-weight: 600;
+}
+.db-alert-date { color: #64748b; font-size: .75rem; }
+.db-days-badge {
+    display: inline-block; padding: 2px 9px; border-radius: 100px;
+    font-size: .7rem; font-weight: 700;
+}
+.db-days-badge--critical { background: #fef2f2; color: #dc2626; }
+.db-days-badge--warning  { background: #fffbeb; color: #d97706; }
+.db-days-badge--soon     { background: #eff6ff; color: #2563eb; }
+
+/* chart */
+.db-chart-wrap { padding: .75rem 1rem; }
+.db-chart-legend {
+    padding: .5rem 1rem .875rem;
+    display: flex; flex-direction: column; gap: .35rem;
+}
+.db-legend-item { display: flex; align-items: center; gap: .5rem; font-size: .75rem; }
+.db-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.db-legend-lbl { flex: 1; color: #475569; }
+.db-legend-val { font-weight: 700; color: #1e293b; }
+
+/* expiry summary cards */
+.db-expiry-summary { display: flex; flex-direction: column; gap: .5rem; padding: .75rem; }
+.db-expiry-card {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .65rem .875rem; border-radius: 10px;
+    background: #fafafa;
+    border: 1px solid #f1f5f9;
+    border-inline-start: 3px solid var(--dc);
+}
+.db-expiry-ico {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: var(--dc); color: #fff; font-size: .85rem;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.db-expiry-info { flex: 1; }
+.db-expiry-name { font-size: .8rem; font-weight: 600; color: #1e293b; }
+.db-expiry-chips { display: flex; gap: .3rem; margin-top: 3px; flex-wrap: wrap; }
+.db-chip { padding: 1px 7px; border-radius: 100px; font-size: .65rem; font-weight: 700; }
+.db-chip--red    { background: #fef2f2; color: #dc2626; }
+.db-chip--orange { background: #fffbeb; color: #d97706; }
+.db-chip--green  { background: #f0fdf4; color: #16a34a; }
+.db-expiry-total {
+    font-size: 1.4rem; font-weight: 800; color: var(--dc);
+    min-width: 32px; text-align: center;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Sidebar accordion — toggle button OR category row click expands/collapses
+document.querySelectorAll('.db-nav-toggle, .db-nav-cat-toggle').forEach(el => {
+    el.addEventListener('click', e => {
+        e.stopPropagation();
+        el.closest('.db-nav-group').classList.toggle('is-open');
+    });
+});
+</script>
+<script>
+(function () {
+    const isRtl = document.documentElement.dir === 'rtl';
+
+    // Nationality pie chart
+    const natEl = document.getElementById('natChart');
+    if (natEl) {
+        const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NationalityBreakdown.Select(x => x.Label)));
+        const data   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.NationalityBreakdown.Select(x => x.Count)));
+        const colors = ['#1a2744','#0d9488','#2563eb','#7c3aed','#d97706','#dc2626'];
+        new Chart(natEl, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+            options: {
+                cutout: '65%',
+                plugins: { legend: { display: false } },
+                animation: { duration: 600 }
+            }
+        });
+    }
+
+    // Department bar chart
+    const deptEl = document.getElementById('deptChart');
+    if (deptEl) {
+        const labels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DeptBreakdown.Select(x => x.Label)));
+        const data   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DeptBreakdown.Select(x => x.Count)));
+        new Chart(deptEl, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    data, backgroundColor: '#1a2744',
+                    borderRadius: 6, borderSkipped: false
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                    y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+                },
+                animation: { duration: 600 }
+            }
+        });
+    }
+})();
+</script>
+}

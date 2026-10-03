@@ -1,0 +1,207 @@
+@model Project_HR_1.Models.ViewModels.Modules.LeavesListVM
+@using Project_HR_1.Models.Hr.Modules
+@{
+    ViewData["Title"] = L.L("الإجازات", "Leaves");
+    var today = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd");
+    var tabs = new (string? Code, string Ar, string En)[] { (null, "الكل", "All"), (RequestStatuses.Pending, "بانتظار الاعتماد", "Pending"), (RequestStatuses.Approved, "معتمدة", "Approved"), (RequestStatuses.Rejected, "مرفوضة", "Rejected"), (RequestStatuses.Cancelled, "ملغاة", "Cancelled") };
+}
+
+<div class="page-head">
+    <div>
+        <h2>@L.L("الإجازات", "Leaves")</h2>
+        <div class="sub">@L.L("طلبات الإجازة واعتمادها وأرصدة الإجازة السنوية", "Leave requests, approvals and annual balances")</div>
+    </div>
+    <div class="page-head-actions">
+        @if (Model.Perms.CanCreate)
+        {
+            <button type="button" class="btn btn-accent btn-sm" data-modal-open="modal-leave-create"><i class="fa-solid fa-plus me-1"></i>@L.L("طلب إجازة", "New request")</button>
+        }
+    </div>
+</div>
+
+<partial name="_ModuleFlash" />
+
+<div class="stats-grid">
+    <div class="stat-card" style="--stat-color:#f59e0b"><div class="stat-icon"><i class="fa-solid fa-hourglass-half"></i></div><div class="stat-info"><h3>@Model.PendingCount</h3><p>@L.L("بانتظار الاعتماد", "Pending approval")</p></div></div>
+    <div class="stat-card" style="--stat-color:#3b82f6"><div class="stat-icon"><i class="fa-solid fa-umbrella-beach"></i></div><div class="stat-info"><h3>@Model.OnLeaveToday</h3><p>@L.L("في إجازة اليوم", "On leave today")</p></div></div>
+    <div class="stat-card" style="--stat-color:#8b5cf6"><div class="stat-icon"><i class="fa-solid fa-plane-departure"></i></div><div class="stat-info"><h3>@Model.UpcomingCount</h3><p>@L.L("إجازات قادمة", "Upcoming")</p></div></div>
+    <div class="stat-card" style="--stat-color:#16a34a"><div class="stat-icon"><i class="fa-solid fa-calendar-check"></i></div><div class="stat-info"><h3>@Model.ApprovedThisMonthDays</h3><p>@L.L("أيام إجازة معتمدة هذا الشهر", "Approved days this month")</p></div></div>
+</div>
+
+<div class="hm-tabs">
+    @foreach (var t in tabs)
+    {
+        <a class="hm-tab @(Model.Status == t.Code ? "active" : "")" asp-action="Index" asp-route-status="@t.Code" asp-route-type="@Model.Type" asp-route-q="@Model.Search">@L.L(t.Ar, t.En)</a>
+    }
+</div>
+
+<div class="data-card">
+    <form method="get" class="filter-bar">
+        <input type="hidden" name="status" value="@Model.Status" />
+        <select name="type" class="select-box" onchange="this.form.submit()">
+            <option value="">@L.L("كل الأنواع", "All types")</option>
+            @foreach (var t in LeaveTypes.All) { <option value="@t.Code" selected="@(Model.Type == t.Code ? "selected" : null)">@L.L(t.Ar, t.En)</option> }
+        </select>
+        <input type="search" name="q" value="@Model.Search" class="select-box" placeholder="@L.L("بحث بالاسم أو الرقم", "Search name or code")" />
+        <button class="btn btn-ghost btn-sm" type="submit"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <span class="hm-spacer"></span>
+        <span class="text-xs text-muted">@Model.Requests.Count @L.L("طلب", "requests")</span>
+    </form>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>@L.L("الموظف", "Employee")</th>
+                    <th>@L.L("النوع", "Type")</th>
+                    <th>@L.L("من", "From")</th>
+                    <th>@L.L("إلى", "To")</th>
+                    <th class="hm-center">@L.L("الأيام", "Days")</th>
+                    <th>@L.L("السبب", "Reason")</th>
+                    <th>@L.L("الحالة", "Status")</th>
+                    <th class="text-end">@L.L("إجراءات", "Actions")</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Requests.Count == 0)
+            {
+                <tr class="empty"><td colspan="8">@L.L("لا توجد طلبات", "No requests.")</td></tr>
+            }
+            @foreach (var r in Model.Requests)
+            {
+                var t = LeaveTypes.Get(r.LeaveType);
+                var st = RequestStatuses.Get(r.Status);
+                <tr>
+                    <td>
+                        <div class="font-semibold">@(r.Employee != null ? L.L(r.Employee.NameAr, r.Employee.NameEn) : "—")</div>
+                        <div class="hm-small hm-muted">@r.Employee?.EmployeeCode · @(r.Employee?.Branch != null ? L.L(r.Employee.Branch.NameAr, r.Employee.Branch.NameEn) : "")</div>
+                    </td>
+                    <td><span class="badge" style="background:@(t.Color)1a;color:@t.Color">@L.L(t.Ar, t.En)</span></td>
+                    <td class="hm-num">@r.StartDate.ToString("yyyy/MM/dd")</td>
+                    <td class="hm-num">@r.EndDate.ToString("yyyy/MM/dd")</td>
+                    <td class="hm-center hm-strong">@r.Days</td>
+                    <td class="hm-small hm-muted" style="max-width:16rem">@r.Reason
+                        @if (!string.IsNullOrEmpty(r.ReviewNote)) { <div style="color:#475569"><i class="fa-solid fa-reply fa-xs"></i> @r.ReviewNote</div> }
+                    </td>
+                    <td><span class="badge badge-@st.Badge">@L.L(st.Ar, st.En)</span></td>
+                    <td class="text-end hm-nowrap">
+                        @if (r.Status == RequestStatuses.Pending && Model.Perms.CanApprove)
+                        {
+                            <form asp-action="Approve" asp-route-id="@r.Id" method="post" class="inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn" title="@L.L("اعتماد", "Approve")" style="color:#16a34a"><i class="fa-solid fa-check"></i></button>
+                            </form>
+                            <button type="button" class="icon-btn icon-btn-danger" title="@L.L("رفض", "Reject")" data-modal-open="modal-reject-@r.Id"><i class="fa-solid fa-xmark"></i></button>
+                        }
+                        @if ((r.Status == RequestStatuses.Pending || r.Status == RequestStatuses.Approved) && Model.Perms.CanEdit)
+                        {
+                            <form asp-action="Cancel" asp-route-id="@r.Id" method="post" class="inline" onsubmit="return confirm('@L.L("إلغاء الإجازة وإرجاع الرصيد؟", "Cancel this leave and restore the balance?")');">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="icon-btn" title="@L.L("إلغاء", "Cancel")"><i class="fa-solid fa-ban"></i></button>
+                            </form>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.Perms.CanApprove)
+{
+    foreach (var r in Model.Requests.Where(x => x.Status == RequestStatuses.Pending))
+    {
+        <dialog id="modal-reject-@r.Id" class="modal">
+            <form method="post" asp-action="Reject" asp-route-id="@r.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-xmark"></i></span><span class="mm-txt"><small>@L.L("الإجازات", "Leaves")</small>@L.L("رفض الطلب", "Reject request")</span></span>
+                    <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p class="hm-small hm-muted">@(r.Employee != null ? L.L(r.Employee.NameAr, r.Employee.NameEn) : "") — @r.Days @L.L("يوم", "days")</p>
+                    <label class="auth-label">@L.L("سبب الرفض", "Reason")</label>
+                    <textarea name="note" class="auth-input" rows="3" maxlength="500"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                    <button type="submit" class="btn btn-danger">@L.L("رفض", "Reject")</button>
+                </div>
+            </form>
+        </dialog>
+    }
+}
+
+@if (Model.Perms.CanCreate)
+{
+    <dialog id="modal-leave-create" class="modal">
+        <form method="post" asp-action="Create">
+            @Html.AntiForgeryToken()
+            <div class="modal-header">
+                <span class="modal-title"><span class="mm-ico"><i class="fa-solid fa-umbrella-beach"></i></span><span class="mm-txt"><small>@L.L("الإجازات", "Leaves")</small>@L.L("طلب إجازة جديد", "New leave request")</span></span>
+                <button type="button" class="modal-close" data-modal-close><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="hm-form two">
+                    <div class="full">
+                        <label class="auth-label">@L.L("الموظف", "Employee")</label>
+                        <select name="EmployeeId" class="auth-input" required id="leave-emp">
+                            <option value="">@L.L("— اختر الموظف —", "— Choose employee —")</option>
+                            @foreach (var e in Model.Employees)
+                            {
+                                <option value="@e.Id" data-balance="@e.LeaveBalance">@L.L(e.NameAr, e.NameEn) · @e.Code</option>
+                            }
+                        </select>
+                        <div class="hm-hint" id="leave-balance"></div>
+                    </div>
+                    <div class="full">
+                        <label class="auth-label">@L.L("نوع الإجازة", "Leave type")</label>
+                        <select name="LeaveType" class="auth-input" required>
+                            @foreach (var t in LeaveTypes.All)
+                            {
+                                <option value="@t.Code">@L.L(t.Ar, t.En)@(t.Days.HasValue ? L.L($" ({t.Days} يوم)", $" ({t.Days} days)") : "")</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("من تاريخ", "Start date")</label>
+                        <input type="date" name="StartDate" value="@today" class="auth-input" required id="leave-from" />
+                    </div>
+                    <div>
+                        <label class="auth-label">@L.L("إلى تاريخ", "End date")</label>
+                        <input type="date" name="EndDate" value="@today" class="auth-input" required id="leave-to" />
+                        <div class="hm-hint" id="leave-days"></div>
+                    </div>
+                    <div class="full">
+                        <label class="auth-label">@L.L("السبب / ملاحظات", "Reason / notes")</label>
+                        <textarea name="Reason" class="auth-input" rows="2" maxlength="500"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" data-modal-close>@L.L("إلغاء", "Cancel")</button>
+                <button type="submit" class="btn btn-primary">@L.L("تسجيل الطلب", "Submit")</button>
+            </div>
+        </form>
+    </dialog>
+}
+
+@section Scripts {
+<script>
+(() => {
+    const emp = document.getElementById('leave-emp'), bal = document.getElementById('leave-balance');
+    const from = document.getElementById('leave-from'), to = document.getElementById('leave-to'), days = document.getElementById('leave-days');
+    if (!emp) return;
+    emp.addEventListener('change', () => {
+        const b = emp.selectedOptions[0]?.dataset.balance;
+        bal.textContent = b ? '@L.L("رصيد الإجازة السنوية: ", "Annual balance: ")' + b + ' @L.L("يوم", "days")' : '';
+    });
+    const calc = () => {
+        if (to.value < from.value) to.value = from.value;
+        const d = (new Date(to.value) - new Date(from.value)) / 86400000 + 1;
+        days.textContent = d > 0 ? '@L.L("المدة: ", "Duration: ")' + d + ' @L.L("يوم", "days")' : '';
+    };
+    from.addEventListener('change', calc); to.addEventListener('change', calc); calc();
+})();
+</script>
+}

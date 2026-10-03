@@ -1,0 +1,87 @@
+@model Project_HR_1.Models.LoginViewModel
+@{
+    ViewData["Title"] = L.T("auth_login");
+    Layout = "_AuthLayout";
+}
+
+<section class="bs-card">
+
+    <div class="bs-form-panel">
+        <div class="bs-brand-row">
+            <div class="bs-brand">
+                <img src="/images/logo.svg" alt="Logo" class="bs-brand-logo" />
+                <span>@L.T("brand")</span>
+            </div>
+            <partial name="_AuthLangSwitch" />
+        </div>
+
+        <div class="bs-form-wrap">
+            <h1>@L.L("أهلاً!", "Hello!")</h1>
+            <p class="bs-intro">
+                @L.L("سجّل دخولك باستخدام بريدك الإلكتروني وكلمة المرور للوصول إلى حسابك",
+                     "Sign in with your email address and password to access your account")
+            </p>
+
+            <form asp-action="Login" method="post" class="bs-login-form" id="bs-login-form">
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                <div asp-validation-summary="ModelOnly" class="auth-error"></div>
+
+                <label class="sr-only" asp-for="Email">@L.T("auth_email")</label>
+                <input asp-for="Email" class="bs-input" placeholder="@L.T("auth_email")" autocomplete="email" />
+                <span asp-validation-for="Email" class="text-rose-600 text-xs -mt-2"></span>
+
+                <label class="sr-only" asp-for="Password">@L.T("auth_password")</label>
+                <input asp-for="Password" class="bs-input" placeholder="@L.T("auth_password")" autocomplete="current-password" />
+                <span asp-validation-for="Password" class="text-rose-600 text-xs -mt-2"></span>
+
+                <div class="flex items-center gap-2 -mt-1">
+                    <input asp-for="RememberMe" class="h-4 w-4" />
+                    <label asp-for="RememberMe" class="text-sm" style="color:#7d7d7d">@L.T("auth_remember_me")</label>
+                </div>
+
+                <button type="submit" class="bs-submit-btn" id="bs-submit-btn">
+                    @L.L("الخطوة التالية", "Next step")
+                </button>
+            </form>
+
+            <div class="bs-contact">
+                <p>@L.L("للتواصل والدعم", "Contact support")</p>
+                <a href="mailto:msharialmogren@gmail.com">msharialmogren@gmail.com</a>
+            </div>
+        </div>
+
+        <p class="bs-copyright">@L.L("جميع الحقوق محفوظة", "All rights reserved") &copy; 2025</p>
+    </div>
+
+    <div class="bs-visual-panel">
+        <img src="/images/logo.svg" alt="" class="bs-visual-logo" aria-hidden="true" />
+
+        <div class="bs-glass-card">
+            <h2>@L.L("نظام إدارة الموارد البشرية", "Human Resources Management System")</h2>
+            <p>@L.L("منصة متكاملة لإدارة الموظفين والأدوار والصلاحيات والخدمات المؤسسية",
+                     "A complete platform for managing employees, roles, permissions, and organizational services")</p>
+        </div>
+    </div>
+
+</section>
+
+<div class="bs-loading-overlay" id="bs-loading-overlay">
+    <div class="bs-loader" id="bs-loader"></div>
+</div>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+    <script>
+        const form    = document.getElementById('bs-login-form');
+        const btn     = document.getElementById('bs-submit-btn');
+        const overlay = document.getElementById('bs-loading-overlay');
+        const loader  = document.getElementById('bs-loader');
+        if (form && btn && overlay && loader) {
+            form.addEventListener('submit', () => {
+                btn.disabled = true;
+                overlay.classList.add('is-active');
+                loader.style.animation = 'bs-spin 900ms linear infinite';
+            });
+        }
+    </script>
+}

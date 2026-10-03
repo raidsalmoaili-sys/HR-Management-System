@@ -1,0 +1,37 @@
+@model Project_HR_1.Models.ViewModels.Management.CompanyEditVM
+<input type="hidden" asp-for="Id" />
+<div asp-validation-summary="ModelOnly" class="auth-error"></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+        <label asp-for="NameAr" class="auth-label">@L.L("اسم الشركة (عربي)", "Company Name (AR)")</label>
+        <input asp-for="NameAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="NameEn" class="auth-label">@L.L("اسم الشركة (إنجليزي)", "Company Name (EN)")</label>
+        <input asp-for="NameEn" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="UnifiedNumber" class="auth-label">@L.L("الرقم الموحد", "Unified Number")</label>
+        <input asp-for="UnifiedNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EstablishmentNumber" class="auth-label">@L.L("رقم المنشأة", "Establishment Number")</label>
+        <input asp-for="EstablishmentNumber" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="CommercialRegistration" class="auth-label">@L.L("رقم السجل التجاري", "Commercial Registration")</label>
+        <input asp-for="CommercialRegistration" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="SectorAr" class="auth-label">@L.L("القطاع", "Sector")</label>
+        <input asp-for="SectorAr" class="auth-input" />
+    </div>
+    <div>
+        <label asp-for="EstablishedYear" class="auth-label">@L.L("سنة التأسيس", "Established Year")</label>
+        <input asp-for="EstablishedYear" class="auth-input" placeholder="مثال: 2010" />
+    </div>
+    <div>
+        <label asp-for="HeadquartersAr" class="auth-label">@L.L("مقر الشركة", "Headquarters")</label>
+        <input asp-for="HeadquartersAr" class="auth-input" />
+    </div>
+</div>

@@ -1,0 +1,119 @@
+@model Project_HR_1.Models.ViewModels.Modules.ContractPrintVM
+@using Project_HR_1.Services.HrModules
+@{
+    Layout = null;
+    var c = Model.Contract;
+    var e = c.Employee!;
+    var co = Model.Company;
+    string D(DateOnly? d) => d?.ToString("yyyy/MM/dd") ?? "—";
+}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8" />
+    <title>@c.ContractNumber — عقد عمل</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <style>
+        @@page { size: A4; margin: 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { font-family: Tajawal, sans-serif; color: #1a2744; margin: 0; background: #e5e7eb; font-size: 13.5px; line-height: 1.85; }
+        .sheet { background: #fff; width: 210mm; min-height: 297mm; margin: 12px auto; padding: 16mm 14mm; box-shadow: 0 4px 24px rgba(0,0,0,.08); }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px double #1a2744; padding-bottom: 10px; margin-bottom: 14px; }
+        .head h1 { margin: 0; font-size: 22px; }
+        .head .meta { text-align: left; font-size: 12px; color: #475569; direction: ltr; }
+        .logo { width: 54px; height: 54px; border-radius: 14px; background: #1a2744; color: #c8a84b; display: grid; place-items: center; font-weight: 800; font-size: 18px; }
+        h2 { font-size: 15px; margin: 18px 0 6px; padding: 4px 10px; background: #f1f5f9; border-inline-start: 4px solid #c8a84b; }
+        table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+        td, th { border: 1px solid #cbd5e1; padding: 5px 8px; vertical-align: top; }
+        th { background: #f8fafc; width: 26%; text-align: right; font-weight: 700; }
+        .num { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+        ol { margin: 4px 0; padding-inline-start: 22px; }
+        .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 34px; }
+        .sign div { border-top: 1px solid #94a3b8; padding-top: 8px; min-height: 90px; }
+        .toolbar { text-align: center; margin: 12px; }
+        .toolbar button { font-family: inherit; font-size: 14px; padding: 8px 22px; border-radius: 10px; border: 0; background: #1a2744; color: #fff; cursor: pointer; }
+        .watermark { color: #94a3b8; font-size: 11px; text-align: center; margin-top: 18px; }
+        @@media print { body { background: #fff; } .sheet { margin: 0; box-shadow: none; width: auto; min-height: 0; padding: 0; } .toolbar { display: none; } }
+    </style>
+</head>
+<body>
+<div class="toolbar"><button onclick="window.print()">طباعة / حفظ PDF</button></div>
+<div class="sheet">
+    <div class="head">
+        <div style="display:flex;gap:12px;align-items:center">
+            <div class="logo">@(co?.Initials ?? "HR")</div>
+            <div>
+                <h1>عقد عمل @(c.ContractType == ContractType.Limited ? "محدد المدة" : "غير محدد المدة")</h1>
+                <div>@co?.NameAr</div>
+            </div>
+        </div>
+        <div class="meta">
+            No. <b>@c.ContractNumber</b><br />
+            Date: @c.CreatedAt.ToString("yyyy/MM/dd")<br />
+            @if (!string.IsNullOrEmpty(co?.UnifiedNumber)) { <span>Unified No: @co.UnifiedNumber</span> }
+        </div>
+    </div>
+
+    <p>إنه في يوم <span class="num">@D(c.StartDate)</span> تم الاتفاق بين كل من:</p>
+
+    <h2>الطرف الأول (صاحب العمل)</h2>
+    <table>
+        <tr><th>المنشأة</th><td>@co?.NameAr</td></tr>
+        <tr><th>الفرع / مقر العمل</th><td>@(Model.Branch?.NameAr ?? "—")</td></tr>
+    </table>
+
+    <h2>الطرف الثاني (العامل)</h2>
+    <table>
+        <tr><th>الاسم</th><td>@e.NameAr</td></tr>
+        <tr><th>الجنسية</th><td>@(e.NationalityAr ?? "—")</td></tr>
+        <tr><th>رقم الهوية / الإقامة</th><td class="num">@(e.NationalId ?? e.IqamaNumber ?? "—")</td></tr>
+        <tr><th>الرقم الوظيفي</th><td class="num">@e.EmployeeCode</td></tr>
+        <tr><th>الجوال</th><td class="num">@(e.Phone ?? "—")</td></tr>
+        <tr><th>العنوان</th><td>@(string.Join("، ", new[] { e.Personal?.City, e.Personal?.District }.Where(x => !string.IsNullOrWhiteSpace(x))) is { Length: > 0 } addr ? addr : "—")</td></tr>
+    </table>
+
+    <h2>البيانات الأساسية للعقد</h2>
+    <table>
+        <tr><th>المسمى الوظيفي</th><td>@(c.JobTitleAr ?? e.JobTitleAr ?? "—")</td></tr>
+        <tr><th>مدة العقد</th><td>من <span class="num">@D(c.StartDate)</span> @(c.EndDate.HasValue ? Html.Raw($"إلى <span class=\"num\">{D(c.EndDate)}</span>") : Html.Raw("— غير محدد المدة"))</td></tr>
+        <tr><th>فترة التجربة</th><td>@(c.ProbationDays > 0 ? $"{c.ProbationDays} يوماً" : "لا يوجد")</td></tr>
+        <tr><th>ساعات العمل</th><td>@c.DailyWorkHours ساعات يومياً، @c.WeeklyWorkDays أيام في الأسبوع</td></tr>
+    </table>
+
+    <h2>الأجر الشهري (ريال سعودي)</h2>
+    <table>
+        <tr><th>الراتب الأساسي</th><td class="num">@HrCalendar.Money(c.BasicSalary)</td></tr>
+        <tr><th>بدل السكن</th><td class="num">@HrCalendar.Money(c.HousingAllowance)</td></tr>
+        <tr><th>بدل النقل</th><td class="num">@HrCalendar.Money(c.TransportAllowance)</td></tr>
+        <tr><th>بدلات أخرى</th><td class="num">@HrCalendar.Money(c.OtherAllowance)</td></tr>
+        <tr><th>الإجمالي</th><td class="num"><b>@HrCalendar.Money(c.TotalSalary)</b></td></tr>
+    </table>
+
+    <h2>البنود</h2>
+    <ol>
+        <li>يلتزم الطرف الثاني بأداء العمل المسند إليه بإخلاص وأمانة وفق تعليمات الطرف الأول وأنظمة العمل المعمول بها في المملكة العربية السعودية.</li>
+        <li>يُصرف الأجر في نهاية كل شهر ميلادي بالتحويل إلى الحساب البنكي للطرف الثاني، وتُخصم منه الاستقطاعات النظامية (التأمينات الاجتماعية) والسلف المعتمدة.</li>
+        <li>يستحق الطرف الثاني إجازة سنوية مدفوعة الأجر مدتها (@c.AnnualLeaveDays) يوماً، وفق المادة (109) من نظام العمل.</li>
+        @if (c.ProbationDays > 0) { <li>يخضع الطرف الثاني لفترة تجربة مدتها (@c.ProbationDays) يوماً، يحق لأي من الطرفين خلالها إنهاء العقد دون تعويض.</li> }
+        <li>لا يجوز لأي من الطرفين إنهاء العقد @(c.EndDate.HasValue ? "قبل انتهاء مدته " : "")إلا بإشعار كتابي قبل (@c.NoticePeriodDays) يوماً، وفق المادة (75) من نظام العمل.</li>
+        <li>يستحق الطرف الثاني مكافأة نهاية الخدمة عند انتهاء العلاقة التعاقدية وفق المادتين (84) و(85) من نظام العمل.</li>
+        <li>يلتزم الطرف الثاني بالمحافظة على أسرار العمل وعدم إفشائها أثناء العقد وبعد انتهائه.</li>
+        <li>ما لم يرد فيه نص في هذا العقد تسري عليه أحكام نظام العمل ولائحته التنفيذية.</li>
+    </ol>
+
+    @if (!string.IsNullOrWhiteSpace(c.ExtraTerms))
+    {
+        <h2>شروط إضافية</h2>
+        <p style="white-space:pre-line">@c.ExtraTerms</p>
+    }
+
+    <p>حُرر هذا العقد من نسختين، بيد كل طرف نسخة للعمل بموجبها.</p>
+
+    <div class="sign">
+        <div><b>الطرف الأول</b><br />الاسم: ........................<br />التوقيع والختم:</div>
+        <div><b>الطرف الثاني</b><br />الاسم: @e.NameAr<br />التوقيع:</div>
+    </div>
+    <div class="watermark">نسخة عرض — بيانات تجريبية · @c.ContractNumber</div>
+</div>
+</body>
+</html>
